@@ -22,8 +22,11 @@ class WorkSpaceInfo
 {
 public:
     std::vector<fs::path> m_include_paths;
+
+    void SetWorkSpacePath(std::string path);
+    std::filesystem::path GetWorkSpacePath() const;
+    std::vector<std::filesystem::path> FindAllHeaderFilesInProject() const;
+private:
     fs::path m_workspace_path;
     fs::path m_output_path;
-
-    std::vector<std::filesystem::path> FindAllHeaderFilesInProject() const;
 };

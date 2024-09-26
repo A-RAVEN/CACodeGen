@@ -6,9 +6,9 @@ int main()
 {
     std::string path = "D:/Projects/CACodeGen/Test";
     LanguageInfo languageInfo;
-    languageInfo.m_cpp_standard = CPPStandard::e2020;
+    languageInfo.m_cpp_standard = CPPStandard::e2011;
     WorkSpaceInfo workSpaceInfo;
-    workSpaceInfo.m_workspace_path = path;
+    workSpaceInfo.SetWorkSpacePath(path);
 
     CodeParser parser(languageInfo, workSpaceInfo);
     parser.Parse();
