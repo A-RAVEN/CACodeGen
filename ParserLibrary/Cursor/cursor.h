@@ -33,6 +33,8 @@ public:
 
     Cursor(const CXCursor& handle);
 
+    CXCursor get() const;
+
     CXCursorKind getKind() const;
 
     std::string getSpelling() const;

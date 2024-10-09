@@ -11,11 +11,13 @@ if (POLICY CMP0140)
 endif()
 
 project(CACodeGen VERSION 0.1.0)
-
+#include(CMake/MetaParser.cmake)
 add_subdirectory(ExternalLibraries)
 add_subdirectory(ParserLibrary)
-add_subdirectory(Runtime)
+add_subdirectory(MetaRuntime)
 add_subdirectory(ReflectionAndSerialize)
+add_subdirectory(MetaParser)
 add_subdirectory(Test)
+
 
 

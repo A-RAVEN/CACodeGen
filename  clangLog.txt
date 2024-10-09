@@ -1,0 +1,4 @@
+CodeGen.o: D:\Projects\CACodeGen\Test\CodeGen\CodeGen.cpp \
+  D:\Projects\CACodeGen\Test\TestHeader.h \
+  D:\Projects\CACodeGen\MetaRuntime\include\CAMeta\CAMetaProps.h \
+  D:\Projects\CACodeGen\Test\TestInclue\TestHeaderInInclude.h

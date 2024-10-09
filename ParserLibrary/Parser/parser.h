@@ -5,16 +5,17 @@
 #include "parser_options.h"
 
 //Handle One 
+class CodeInfoContainerState;
 class CodeParser
 {
 public:
     CodeParser(LanguageInfo const& languageInfo, WorkSpaceInfo const& workSpaceInfo);
     void Parse();
-    void TraverseCodeSpace(const Cursor& cursor, NameSpace& current_namespace);
+    void TraverseCodeSpace(const Cursor& cursor, CodeInfoContainerState& currentState);
 private:
     LanguageInfo m_LanguageInfo;
     WorkSpaceInfo m_WorkSpaceInfo;
 
-    CXIndex           m_Index;
-    CXTranslationUnit m_TranslationUnit;
+    CXIndex           m_Index = nullptr;
+    CXTranslationUnit m_TranslationUnit = nullptr;
 };

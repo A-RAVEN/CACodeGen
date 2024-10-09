@@ -21,12 +21,18 @@ public:
 class WorkSpaceInfo
 {
 public:
-    std::vector<fs::path> m_include_paths;
 
     void SetWorkSpacePath(std::string path);
-    std::filesystem::path GetWorkSpacePath() const;
-    std::vector<std::filesystem::path> FindAllHeaderFilesInProject() const;
+    fs::path GetWorkSpacePath() const;
+    fs::path GetCodeGenOutputPath() const;
+    std::string GetWorkSpaceFolderName() const;
+
+    void AddIncludePath(std::string path);
+
+    std::vector<fs::path> FindAllHeaderFilesInProject() const;
+    std::vector<fs::path>  const& GetExtraIncludePaths() const;
 private:
+    std::vector<fs::path> m_include_paths;
     fs::path m_workspace_path;
     fs::path m_output_path;
 };

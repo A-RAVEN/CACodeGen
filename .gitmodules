@@ -1,3 +1,6 @@
 [submodule "ExternalLibraries/Mustache"]
 	path = ExternalLibraries/Mustache
 	url = https://github.com/kainjow/Mustache.git
+[submodule "ExternalLibraries/argparse"]
+	path = ExternalLibraries/argparse
+	url = https://github.com/p-ranav/argparse.git

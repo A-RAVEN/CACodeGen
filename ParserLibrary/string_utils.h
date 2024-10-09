@@ -55,7 +55,7 @@ namespace Utils
 
     static std::string toUpper(std::string& source_string)
     {
-        transform(source_string.begin(), source_string.end(), source_string.begin(), ::toupper);
+        std::transform(source_string.begin(), source_string.end(), source_string.begin(), ::toupper);
         return source_string;
     }
 
