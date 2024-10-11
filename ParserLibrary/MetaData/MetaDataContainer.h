@@ -8,5 +8,5 @@ class MetaDataContainer
 public:
     MetaDataContainer(Cursor const& cursor);
 private:
-    //std::vector<MetaPropertyInfo> m_PropertyInfos;
+    std::vector<MetaPropertyInfo> m_PropertyInfos;
 };

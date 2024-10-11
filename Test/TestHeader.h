@@ -5,7 +5,7 @@
 namespace TestNameSpaceB
 {
     using namespace TestNameSpaceA;
-    class CAMETA(MetaDataInInclude(1)) TestProp : public BaseClassTest
+    class CAMETA(MetaDataInInclude(1, 3.0f)) TestProp : public BaseClassTest
     {
     public:
         int x;

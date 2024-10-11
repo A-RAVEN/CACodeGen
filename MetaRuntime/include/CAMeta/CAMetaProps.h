@@ -1,7 +1,7 @@
 #pragma once
 
 #if defined(__CASCADE_REFLECTION_PARSER__)
-#define CAMETA(...) __attribute__((annotate("meta-property;" #__VA_ARGS__)))
+#define CAMETA(...) __attribute__((annotate("CAMETA_PROPS," #__VA_ARGS__)))
 #else
 // //combine macro strings
 // #define CA_COMBINE(PREFIX, ID) PREFIX##ID
