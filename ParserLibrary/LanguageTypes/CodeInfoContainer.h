@@ -7,6 +7,7 @@
 class CodeInfoContainer
 {
 public:
+    std::vector<std::shared_ptr<ClassOrStructInfo>> const& GetAllClasses() const { return m_AllClasses; }
 private:
     std::vector<std::shared_ptr<ClassOrStructInfo>> m_AllClasses;
     

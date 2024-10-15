@@ -134,6 +134,12 @@ MetaDataContainer::MetaDataContainer(Cursor const& cursor)
         if(child.getKind() == CXCursor_AnnotateAttr)
         {
             auto displayname = child.getDisplayName();
+            const std::string header = "CAMETA_PROPS:";
+            if(displayname.rfind(header, 0) != 0)
+            {
+                continue;
+            }
+            displayname = displayname.substr(header.length());
             std::cout << "attribute str: " << displayname << std::endl;
             auto tokenResults = getConstructorTokenizer().Tokenize( displayname );
 
@@ -230,4 +236,16 @@ MetaDataContainer::MetaDataContainer(Cursor const& cursor)
             }
         }
     }
+}
+
+MetaPropertyInfo const* MetaDataContainer::GetPropertyInfo(std::string const& propertyName) const
+{
+    for(auto& prop : m_PropertyInfos)
+    {
+        if(prop.GetName() == propertyName)
+        {
+            return &prop;
+        }
+    }
+    return nullptr;
 }

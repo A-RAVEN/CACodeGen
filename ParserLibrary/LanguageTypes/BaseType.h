@@ -16,6 +16,7 @@ public:
     NameSpaceInfo const* getCurrentNamespace() const;
 
     Cursor& getCurosr();
+    Cursor const& getCurosr() const { return m_RootCursor; }
 
 protected:
     MetaDataContainer m_MetaData;

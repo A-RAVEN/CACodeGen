@@ -1,6 +1,5 @@
 #pragma once
 #include <pch.h>
-#include <Cursor/namespace.h>
 #include <Cursor/cursor.h>
 #include "parser_options.h"
 

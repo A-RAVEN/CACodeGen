@@ -15,5 +15,6 @@ namespace TestNameSpaceB
             int a;
             int b;
         };
+        void TestFunction(int a, float b){}
     };
 }

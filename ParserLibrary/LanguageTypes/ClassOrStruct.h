@@ -1,5 +1,7 @@
 #pragma once
 #include "BaseType.h"
+#include "FieldInfo.h"
+#include "MethodInfo.h"
 
 class NameSpaceInfo;
 class CodeInfoContainerState;
@@ -17,7 +19,10 @@ public:
     ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerState* codeInfoState, ClassOrStructInfo const* ownerClass = nullptr);
     virtual ~ClassOrStructInfo(void) {}
 private:
+    bool m_IsStruct;
     std::vector<BaseClassInfo> m_BaseClasses;
     ClassOrStructInfo const* m_OwnerClass;
     std::vector<ClassOrStructInfo*> m_NestedClasses;
+    std::vector<FieldInfo> m_Fields;
+    std::vector<MethodInfo> m_Methods;
 };

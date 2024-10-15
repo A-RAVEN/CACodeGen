@@ -12,6 +12,8 @@ ClassOrStructInfo::ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerStat
  : BaseTypeInfo(cursor, codeInfoState->m_CurrentNameSpace.get())
 , m_OwnerClass(ownerClass)
 {
+    assert(cursor.getKind() == CXCursor_ClassDecl || cursor.getKind() == CXCursor_StructDecl);
+    m_IsStruct = cursor.getKind() == CXCursor_StructDecl;
     std::cout << "class Info:" << cursor.getDisplayName() << " namespace:" << std::endl;
     auto children = getCurosr().getChildren();
     for(auto& child : children)
@@ -34,11 +36,11 @@ ClassOrStructInfo::ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerStat
             }
             // field
             case CXCursor_FieldDecl:
-                //m_fields.emplace_back(new Field(child, current_namespace, this));
+                m_Fields.emplace_back(child, codeInfoState, this);
                 break;
             // method
             case CXCursor_CXXMethod:
-                //m_methods.emplace_back(new Method(child, current_namespace, this));
+                m_Methods.emplace_back(child, codeInfoState, this);
             default:
                 break;
         }
