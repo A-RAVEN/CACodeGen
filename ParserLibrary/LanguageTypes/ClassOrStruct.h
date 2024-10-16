@@ -18,6 +18,7 @@ class ClassOrStructInfo : public BaseTypeInfo
 public:
     ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerState* codeInfoState, ClassOrStructInfo const* ownerClass = nullptr);
     virtual ~ClassOrStructInfo(void) {}
+    std::vector<MethodInfo> const& GetMethods() const { return m_Methods; }
 private:
     bool m_IsStruct;
     std::vector<BaseClassInfo> m_BaseClasses;

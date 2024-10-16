@@ -8,6 +8,7 @@ class NameSpaceInfo
 {
 public:
     NameSpaceInfo(std::string nameSpace, std::shared_ptr<NameSpaceInfo> parentNameSpace, bool anonymous = false);
+    std::string GetFullNameSpace(std::string separator = "::") const;
 private:
     bool m_Anonymous;
     std::string m_NameSpace;

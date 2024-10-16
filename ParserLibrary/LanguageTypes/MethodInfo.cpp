@@ -7,7 +7,17 @@ ArgumentInfo::ArgumentInfo(Cursor const& cursor)
     : m_Cursor(cursor)
 {
     assert(cursor.getKind() == CXCursor_ParmDecl);
-    std::cout << "argument: " << m_Cursor.getDisplayName() << " type: " << m_Cursor.getType().GetDisplayName() << std::endl;
+    std::cout << "argument: " << m_Cursor.getDisplayName()
+    << " type: " << m_Cursor.getType().GetDisplayName()
+    << " isReference: " << (m_Cursor.getType().IsReference())
+    << " isPointer: " << (m_Cursor.getType().IsPointer())
+    << " canonical type: " << m_Cursor.getType().GetCanonicalType().GetDisplayName();
+    std::cout << " kind spelling: " << m_Cursor.getType().GetKindSpelling();
+    if(m_Cursor.getType().IsReferenceOrPointer())
+    {
+        std::cout << " pointee type: " << m_Cursor.getType().GetPointeeType().GetDisplayName();
+    }
+    std::cout << std::endl;
 }
 
 
@@ -16,12 +26,15 @@ MethodInfo::MethodInfo(const Cursor& cursor
 , ClassOrStructInfo const* ownerClass)
     : BaseTypeInfo(cursor, codeInfoState->m_CurrentNameSpace.get())
     , m_OwnerClass(ownerClass)
-    , m_Name(cursor.getDisplayName())
+    , m_Spelling(cursor.getSpelling())
 {
     assert(cursor.getKind() == CXCursor_CXXMethod);
-    int count = cursor.getType().GetArgumentCount();
-    std::cout << "Method: " << m_Name << " argument count: " << count << std::endl;
-
+    std::cout << "Method: " << cursor.getDisplayName() 
+    << "\n\tspelling: " << cursor.getSpelling() 
+    << "\n\tcanonical: " << cursor.getType().GetCanonicalType().GetDisplayName() 
+    << "\n\targument count: " << cursor.getType().GetArgumentCount() 
+    << std::endl;
+    m_IsConst = cursor.getType().IsConst();
     auto children = cursor.getChildren();
     for (auto& child : children)
     {

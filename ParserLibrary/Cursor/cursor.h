@@ -14,12 +14,22 @@ public:
     CursorType GetArgument(unsigned index) const;
 
     CursorType GetCanonicalType(void) const;
+    CursorType GetPointeeType(void) const;
 
     Cursor GetDeclaration(void) const;
 
     CXTypeKind GetKind(void) const;
+    std::string GetKindSpelling() const;
 
+    //单层指针，不是指针的指针
+    bool IsOneLayerPointer() const;
     bool IsConst(void) const;
+    bool IsBuiltInType() const;
+    bool IsReference() const;
+    bool IsRValueReference() const;
+    bool IsLValueReference() const;
+    bool IsPointer() const;
+    bool IsReferenceOrPointer() const;
 
 private:
     CXType m_handle;
@@ -45,6 +55,7 @@ public:
     bool isDefinition() const;
 
     CursorType getType() const;
+    CursorType GetReturnType(void) const;
 
     std::vector<Cursor> getChildren() const;
     void visitChildren(Visitor visitor, void* data = nullptr);

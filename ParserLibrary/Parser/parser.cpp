@@ -5,47 +5,7 @@
 #include <LanguageTypes/BaseType.h>
 #include <LanguageTypes/ClassOrStruct.h>
 #include <LanguageTypes/CodeInfoContainer.h>
-
-std::string getCursorKindName( CXCursorKind cursorKind )
-{
-  CXString kindName  = clang_getCursorKindSpelling( cursorKind );
-  std::string result = clang_getCString( kindName );
-
-  clang_disposeString( kindName );
-  return result;
-}
-
-std::string getCursorSpelling( CXCursor cursor )
-{
-  CXString cursorSpelling = clang_getCursorSpelling( cursor );
-  std::string result      = clang_getCString( cursorSpelling );
-
-  clang_disposeString( cursorSpelling );
-  return result;
-}
-
-CXChildVisitResult visitor( CXCursor cursor, CXCursor /* parent */, CXClientData clientData )
-{
-  CXSourceLocation location = clang_getCursorLocation( cursor );
-  if( clang_Location_isFromMainFile( location ) == 0 )
-    return CXChildVisit_Continue;
-
-  CXCursorKind cursorKind = clang_getCursorKind( cursor );
-
-  unsigned int curLevel  = *( reinterpret_cast<unsigned int*>( clientData ) );
-  unsigned int nextLevel = curLevel + 1;
-
-  std::cout << std::string( curLevel, '-' ) << " " << getCursorKindName(
-  cursorKind ) << " (" << getCursorSpelling( cursor ) << ")\n";
-
-  clang_visitChildren( cursor,
-                       visitor,
-                       &nextLevel ); 
-
-  return CXChildVisit_Continue;
-}
-
-
+#include <Generator/Generator.h>
 
 class LibClangArguments
 {
@@ -72,17 +32,11 @@ public:
 
         if(m_IncludePaths.size() > 0)
         {
-            //arguments.push_back(m_CombinedIncludePaths.c_str());
             for(auto ppath = m_IncludePaths.begin(); ppath != m_IncludePaths.end(); ++ppath)
             {
                 arguments.push_back("-I");
                 arguments.push_back(ppath->c_str());
             }
-            // for(std::string const& path : m_IncludePaths)
-            // {
-            //     arguments.push_back("-I");
-            //     arguments.push_back(path.c_str());
-            // }
         }
         return arguments;
     }
@@ -181,15 +135,10 @@ void CodeParser::Parse()
     CodeInfoContainer codeInfoContainer;
     CodeInfoContainerState containerState(&codeInfoContainer);
     TraverseCodeSpace(cursor, containerState);
-    // clang_visitChildren(
-    // cursor.get(),
-    // [](CXCursor c, CXCursor parent, CXClientData client_data)
-    // {
-    //   std::cout << "Cursor '" << getCursorSpelling(c) << "' of kind '"
-    //     << getCursorKindName(clang_getCursorKind(c)) << "'\n";
-    //   return CXChildVisit_Recurse;
-    // },
-    // nullptr);
+
+    ICodeGenerator codeGenerator{};
+    codeGenerator.GenerateCode(codeInfoContainer);
+
     clang_disposeTranslationUnit(m_TranslationUnit);
     clang_disposeIndex(m_Index);
 }
@@ -222,7 +171,6 @@ void CodeParser::TraverseCodeSpace(const Cursor& parentCursor, CodeInfoContainer
                     break;
             }
         }
-        //else
         {
             switch(kind)
             {

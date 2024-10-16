@@ -5,7 +5,14 @@
 namespace TestNameSpaceB
 {
     using namespace TestNameSpaceA;
-    class CAMETA(MetaDataInInclude(1, 3.0f)) TestProp : public BaseClassTest
+
+    class TestClass1
+    {
+        public:
+        int c1x;
+    };
+
+    class CAMETA(MetaDataInInclude(1, 3.0f), CodeGen) TestProp : public BaseClassTest
     {
     public:
         int x;
@@ -15,6 +22,8 @@ namespace TestNameSpaceB
             int a;
             int b;
         };
-        void TestFunction(int a, float b){}
+        using TType = int;
+        void TestFunction(int a, float& b, int* c, TType d, TType& e
+        , TestClass1 f, TestClass1& g, TestClass1* h){}
     };
 }
