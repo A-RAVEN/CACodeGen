@@ -11,6 +11,10 @@ int main(int argc, char *argv[])
 
     argparse::ArgumentParser program("cacodegen", "0.0.1");
 
+    program.add_argument("-P", "--project")
+    .required()
+    .help("project name");
+
     program.add_argument("-S","--cppstd")
     .help("cpp standard: 11, 14, 17, 20")
     .default_value(20)
@@ -61,6 +65,9 @@ int main(int argc, char *argv[])
     }
 
     WorkSpaceInfo workSpaceInfo;
+    std::string project_name = program.get<std::string>("--project");
+    workSpaceInfo.SetProjectName(project_name);
+    std::cout << "project name: " << project_name << std::endl;
     std::string workspace_path = program.get<std::string>("--workspace");
     workSpaceInfo.SetWorkSpacePath(workspace_path);
     std::cout << "work space: " << workspace_path << std::endl;

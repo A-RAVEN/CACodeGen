@@ -1,5 +1,20 @@
 #include "parser_options.h"
 
+void WorkSpaceInfo::SetProjectName(std::string name)
+{
+    m_project_name = name;
+}
+
+std::string WorkSpaceInfo::GetProjectName() const
+{
+    return m_project_name;
+}
+
+fs::path WorkSpaceInfo::FullPathToWorkspace(fs::path full_path) const
+{
+    return fs::relative(full_path, GetWorkSpacePath());
+}
+
 void WorkSpaceInfo::SetWorkSpacePath(std::string path)
 {
     std::replace(path.begin(), path.end(), '\\', '/');

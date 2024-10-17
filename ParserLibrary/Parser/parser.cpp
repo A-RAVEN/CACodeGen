@@ -109,7 +109,6 @@ void CodeParser::Parse()
     fs::remove_all(m_WorkSpaceInfo.GetCodeGenOutputPath());
     std::filesystem::create_directories(m_WorkSpaceInfo.GetCodeGenOutputPath());
     fs::path codegenFilePath = m_WorkSpaceInfo.GetCodeGenOutputPath() / "CodeGen.cpp";
-    //std::string temp_parsing_file_path = m_WorkSpaceInfo.GetWorkSpaceFolderName() + ".cpp";
     temp_parsing_file.open(codegenFilePath, std::ios::out);
     if (!temp_parsing_file.is_open())
     {
@@ -131,13 +130,12 @@ void CodeParser::Parse()
     m_TranslationUnit = clang_createTranslationUnitFromSourceFile(
     m_Index, codegenFilePath.string().c_str(), static_cast<int>(argStr.size()), argStr.data(), 0, nullptr);
     Cursor cursor = clang_getTranslationUnitCursor(m_TranslationUnit);
-
     CodeInfoContainer codeInfoContainer;
     CodeInfoContainerState containerState(&codeInfoContainer);
     TraverseCodeSpace(cursor, containerState);
 
     ICodeGenerator codeGenerator{};
-    codeGenerator.GenerateCode(codeInfoContainer);
+    codeGenerator.GenerateCode(m_WorkSpaceInfo, codeInfoContainer);
 
     clang_disposeTranslationUnit(m_TranslationUnit);
     clang_disposeIndex(m_Index);
