@@ -26,6 +26,8 @@ public:
     std::string const& GetSpelling() const { return m_Spelling; }
     std::vector<ArgumentInfo> const& GetArguments(void) const { return m_Arguments; }
     ClassOrStructInfo const* GetOwnerClass(void) const { return m_OwnerClass; }
+    CursorType GetReturnType() const { return getCurosr().GetReturnType(); }
+    bool HasReturnType() const { return !getCurosr().GetReturnType().IsVoid(); }
 private:
     ClassOrStructInfo const* m_OwnerClass;
     std::string m_Spelling;

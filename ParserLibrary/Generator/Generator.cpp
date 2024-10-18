@@ -11,6 +11,11 @@ Mustache::mustache CreateMustacheNoEscape(std::string const& templateStr)
     return mustache;
 }
 
+bool IsOpaqueType(CursorType cursorType)
+{
+    return cursorType.GetCanonicalType().GetKind() == CXType_Elaborated && !cursorType.IsBuiltInType();
+}
+
 bool CCompatibleArgument(CursorType cursorType)
 {
     if(cursorType.IsOneLayerPointer()||!cursorType.IsReferenceOrPointer())
@@ -27,46 +32,64 @@ bool CCompatibleArgument(CursorType cursorType)
 
 std::string GetArgumentTypeForC(CursorType cursorType)
 {
-    std::string argumentType = "";
-    if(cursorType.IsConst())
-    {
-        argumentType += "const ";
-    }
+    bool hasConst = cursorType.IsConst();
     bool needPointer = cursorType.IsReferenceOrPointer();
     if(needPointer)
     {
         cursorType = cursorType.GetPointeeType();
     }
-    if(cursorType.IsBuiltInType())
+    cursorType = cursorType.GetCanonicalType();
+    bool isOpaqueType = IsOpaqueType(cursorType);
+
+    Mustache::mustache argumentTemplate = CreateMustacheNoEscape("{{const}}{{typename}}{{pointer}}");
+    Mustache::data data;
+    data["const"] = hasConst ? "const " : "";
+    data["typename"] = isOpaqueType ? "void*" : cursorType.GetCanonicalType().GetDisplayName();
+    data["pointer"] = needPointer ? "*" : "";
+    return argumentTemplate.render(data);
+}
+
+std::string GetReturnTypeForC(CursorType cursorType)
+{
+    bool isVoid = cursorType.IsVoid();
+    if(isVoid)
     {
-        argumentType += cursorType.GetCanonicalType().GetDisplayName();
+        return "void";
     }
-    else
-    {
-        needPointer = true;
-        argumentType += "void";
-    }
+
+    bool hasConst = cursorType.IsConst();
+    bool needPointer = cursorType.IsReferenceOrPointer();
     if(needPointer)
     {
-        argumentType += "*";
+        cursorType = cursorType.GetPointeeType();
     }
-    return argumentType;
+    cursorType = cursorType.GetCanonicalType();
+    bool isOpaqueType = IsOpaqueType(cursorType);
+
+    Mustache::mustache returnTypeTemplate = CreateMustacheNoEscape("{{const}}{{typename}}{{pointer}}");
+    Mustache::data data;
+    data["const"] = hasConst ? "const " : "";
+    data["typename"] = isOpaqueType ? "void*" : cursorType.GetDisplayName();
+    data["pointer"] = needPointer ? "*" : "";
+    return returnTypeTemplate.render(data);
 }
 
 std::string GetArgumentC2CPPConversion(Cursor argCursor)
 {
     CursorType cursorType = argCursor.getType();
     bool hasConst = cursorType.IsConst();
-    bool needPointer = cursorType.IsReferenceOrPointer() || (cursorType.GetKind() == CXType_Elaborated);
+    bool needPointer = cursorType.IsReferenceOrPointer() || IsOpaqueType(cursorType);
     bool needDereference = needPointer && !cursorType.IsPointer();
     if(cursorType.IsReferenceOrPointer())
     {
         cursorType = cursorType.GetPointeeType();
     }
-    Mustache::mustache conversionTmp = CreateMustacheNoEscape("{{dereference}}({{const}}{{typename}}{{pointer}}){{argname}}");
+    cursorType = cursorType.GetCanonicalType();
+    Mustache::mustache conversionTmp = CreateMustacheNoEscape("{{dereference}}{{#need_convert}}({{const}}{{typename}}{{pointer}}){{/need_convert}}{{argname}}");
     Mustache::data data;
+    data.set("need_convert", IsOpaqueType(cursorType));
     data["const"] = hasConst ? "const " : "";
-    data["typename"] = cursorType.GetCanonicalType().GetDisplayName();
+    data["typename"] = cursorType.GetDisplayName();
     data["pointer"] = needPointer ? "*" : "";
     data["dereference"] = needDereference ? "*" : "";
     data["argname"] = argCursor.getDisplayName();
@@ -101,7 +124,13 @@ std::string GetCallerTypeC2CPPConversion(MethodInfo const& methodInfo)
     return conversionTmp.render(data);
 }
 
-
+bool ReturnTypeNeedCopyAllocation(CursorType cursorType)
+{
+    //返回了一个不透明类型的拷贝，需要分配内存
+    bool isOpaqueType = IsOpaqueType(cursorType);
+    bool needPointer = cursorType.IsReferenceOrPointer();
+    return isOpaqueType && !needPointer;
+}
 
 std::string GetFunctionBody(MethodInfo const& methodInfo)
 {
@@ -112,13 +141,22 @@ std::string GetFunctionBody(MethodInfo const& methodInfo)
         args += (first ? "" : ", ") + GetArgumentC2CPPConversion(argInfo.GetCursor());
     }
     std::cout << "TEST: >" << std::endl;
-    Mustache::mustache bodyTemplate = CreateMustacheNoEscape("({{caller_conversion}} thisPtr)->{{function_name}}({{arguments}});");
+    Mustache::mustache bodyTemplate = CreateMustacheNoEscape(R"(
+    {{#should_return}}auto returnVal = {{/should_return}}({{caller_conversion}}thisPtr)->{{function_name}}({{arguments}});
+    {{#should_return}}return {{#direct_return}}returnVal{{/direct_return}}{{#allocate_return}}returnVal{{/allocate_return}};{{/should_return}}
+    )");
+
+    bool needCopyAllocation = ReturnTypeNeedCopyAllocation(methodInfo.GetReturnType());
+
     bodyTemplate.set_custom_escape([](const std::string& s) {return s;});
 
     Mustache::data data;
     data["caller_conversion"] = GetCallerTypeC2CPPConversion(methodInfo);
     data["function_name"] = methodInfo.GetSpelling();
     data["arguments"] = args;
+    data.set("should_return", methodInfo.HasReturnType());
+    data.set("direct_return", !needCopyAllocation);
+    data.set("allocate_return", needCopyAllocation);
     return bodyTemplate.render(data);
 }
 
@@ -243,7 +281,7 @@ extern "C"
                 Mustache::data methodData;
                 methodData["method_name"] = GetFunctionNameForC(methodInfo);
                 methodData["arguments"] = argumentStr;
-                methodData["return_value"] = "void";
+                methodData["return_value"] = GetReturnTypeForC(methodInfo.getCurosr().GetReturnType());
                 methodData["method_body"] = GetFunctionBody(methodInfo);
 
                 methodInfo.GetArgumentCount();

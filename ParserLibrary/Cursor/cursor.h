@@ -24,6 +24,7 @@ public:
     //单层指针，不是指针的指针
     bool IsOneLayerPointer() const;
     bool IsConst(void) const;
+    bool IsVoid() const;
     bool IsBuiltInType() const;
     bool IsReference() const;
     bool IsRValueReference() const;

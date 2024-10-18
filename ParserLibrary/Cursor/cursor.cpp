@@ -37,6 +37,8 @@ std::string CursorType::GetKindSpelling() const
 
 bool CursorType::IsConst(void) const { return clang_isConstQualifiedType(m_handle) ? true : false; }
 
+bool CursorType::IsVoid() const { return m_handle.kind == CXType_Void; }
+
 bool CursorType::IsOneLayerPointer() const
 {
     return IsReferenceOrPointer() && !GetPointeeType().IsReferenceOrPointer();

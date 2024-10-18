@@ -26,6 +26,7 @@ namespace TestNameSpaceB
         void TestFunction(int a, float& b, int* c, TType d, TType& e
         , TestClass1 f, TestClass1& g, TestClass1* h){}
 
-        void TestFunction1(double aa);
+
+        bool TestFunction1(double aa){ return true;};
     };
 }
