@@ -11,6 +11,7 @@
             //"program": "${workspaceFolder}/build/Test/Debug/CACodeGenTest.exe",
             "program": "${command:cmake.launchTargetPath}",
             "args": [
+                "--project=Test",
                 "--cppstd=20",
                 "--workspace=${workspaceFolder}/Test",
                 "--includes=${workspaceFolder}/Test/TestInclue",

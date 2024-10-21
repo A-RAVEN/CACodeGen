@@ -28,6 +28,7 @@ public:
     ClassOrStructInfo const* GetOwnerClass(void) const { return m_OwnerClass; }
     CursorType GetReturnType() const { return getCurosr().GetReturnType(); }
     bool HasReturnType() const { return !getCurosr().GetReturnType().IsVoid(); }
+    bool IsDefaultConstructor() const;
 private:
     ClassOrStructInfo const* m_OwnerClass;
     std::string m_Spelling;

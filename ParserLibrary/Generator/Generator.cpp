@@ -1,10 +1,9 @@
 #include "Generator.h"
 #include <LanguageTypes/CodeInfoContainer.h>
-#include <mustache.hpp>
 #include <string_utils.h>
 #include <set>
 
-Mustache::mustache CreateMustacheNoEscape(std::string const& templateStr)
+static Mustache::mustache CreateMustacheNoEscape(const char* templateStr)
 {
     Mustache::mustache mustache(templateStr);
     mustache.set_custom_escape([](const std::string& s) {return s;});
@@ -112,6 +111,11 @@ std::string GetFunctionNameForC(MethodInfo const& methodInfo)
     return functionName;
 }
 
+std::string GetCustructorForC(ClassOrStructInfo const& classInfo)
+{
+    return classInfo.getCurosr().getDisplayName() + "_ctor";
+}
+
 std::string GetCallerTypeC2CPPConversion(MethodInfo const& methodInfo)
 {
     bool isConst = methodInfo.IsConst();
@@ -160,8 +164,120 @@ std::string GetFunctionBody(MethodInfo const& methodInfo)
     return bodyTemplate.render(data);
 }
 
+void ICodeGenerator::GenerateMethods(MethodInfo const& methodInfo
+, Mustache::data& outMethodDeclarations
+, Mustache::data& outMethodImplementations)
+{
+    for(auto& argInfo : methodInfo.GetArguments())
+    {
+        if(!CCompatibleArgument(argInfo.GetCursor().getType()))
+        {
+            return;
+        }
+    }
+
+    Mustache::mustache argumentsDeclTemplate = CreateMustacheNoEscape("{{thisPtrArgDecl}}{{#argDecls}}, {{argDecl}}{{/argDecls}}");
+    Mustache::data argumentsDeclData;
+    argumentsDeclData["thisPtrArgDecl"] = methodInfo.IsConst() ? "void const* thisPtr" : "void* thisPtr";
+    Mustache::data argDecls = Mustache::data::type::list;
+
+    for(auto& argInfo : methodInfo.GetArguments())
+    {
+        argDecls.push_back(Mustache::data{"argDecl", GetArgumentTypeForC(argInfo.GetCursor().getType()) + " " + argInfo.GetName()});
+    }
+    argumentsDeclData.set("argDecls", argDecls);
+
+    Mustache::data methodData;
+    methodData["method_name"] = GetFunctionNameForC(methodInfo);
+    methodData["arguments"] = argumentsDeclTemplate.render(argumentsDeclData);
+    methodData["return_value"] = GetReturnTypeForC(methodInfo.getCurosr().GetReturnType());
+    methodData["method_body"] = GetFunctionBody(methodInfo);
+
+    outMethodDeclarations.push_back(Mustache::data{"method_declaration", methodDeclaration.render(methodData)});
+    outMethodImplementations.push_back(Mustache::data{"method_implementation", methodTemplte.render(methodData)});
+
+    std::cout << "\t declaration: " << methodDeclaration.render(methodData) << std::endl;
+    std::cout << "\t method: " << methodTemplte.render(methodData) << std::endl;
+}
+
+void GenerateConstructors(ClassOrStructInfo const& classInfo
+, Mustache::data& outMethodDeclarations
+, Mustache::data& outMethodImplementations)
+{
+    std::string constructorName = GetCustructorForC(classInfo);
+
+    if(classInfo.DefaultConstructable())
+    {
+        Mustache::mustache defaultConstructorImpl = CreateMustacheNoEscape(R"(
+            void* {{method_name}}()
+            {
+                return new {{class_name}}();
+            }
+        )");
+        Mustache::data defaultConstructorData;
+        defaultConstructorData["method_name"] = constructorName;
+        defaultConstructorData["class_name"] = classInfo.getCurosr().getType().GetCanonicalType().GetDisplayName();
+
+        outMethodDeclarations.push_back(Mustache::data{"method_declaration", "void* " + constructorName + "();"});
+        outMethodImplementations.push_back(Mustache::data{"method_implementation", defaultConstructorImpl.render(defaultConstructorData)});
+    }
+
+    Mustache::mustache argumentsDeclTemplate = CreateMustacheNoEscape("{{thisPtrArgDecl}}{{#argDecls}}, {{argDecl}}{{/argDecls}}");
+
+    auto& methodInfos = classInfo.GetMethods();
+    for(auto const& methodInfo : methodInfos)
+    {
+        bool canGenerate = true;
+        for(auto& argInfo : methodInfo.GetArguments())
+        {
+            if(!CCompatibleArgument(argInfo.GetCursor().getType()))
+            {
+                canGenerate = false;
+                break;;
+            }
+        }
+        if(canGenerate && !methodInfo.IsDefaultConstructor())
+        {
+            auto& constructorArgs = methodInfo.GetArguments();
+
+            if(constructorArgs.size() > 0)
+            {
+                std::string firstArg = GetArgumentTypeForC(constructorArgs[0].GetCursor().getType()) + " " + constructorArgs[0].GetName();
+                Mustache::data argDecls = Mustache::data::type::list;
+                for(int i = 1; i < constructorArgs.size(); ++i)
+                {
+                    argDecls.push_back(Mustache::data{"argDecl", GetArgumentTypeForC(constructorArgs[i].GetCursor().getType()) + " " + constructorArgs[i].GetName()});
+                }
+   
+            }
+            Mustache::mustache constructorTemplate = CreateMustacheNoEscape(R"(
+            void* {{method_name}}({{arguments}})
+            {
+                return new {{class_name}}();
+            }
+            )");
+
+            Mustache::data defaultConstructorData;
+            defaultConstructorData["method_name"] = constructorName;
+            defaultConstructorData["class_name"] = classInfo.getCurosr().getType().GetCanonicalType().GetDisplayName();
+
+        }
+    }
+
+
+}
+
 void ICodeGenerator::GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer)
 {
+
+    methodDeclaration = CreateMustacheNoEscape("{{return_value}} {{method_name}}({{arguments}});");
+    methodTemplte = CreateMustacheNoEscape(R"(
+    {{return_value}} {{method_name}}({{arguments}})
+    {
+        {{method_body}} 
+    }
+    )");
+
     std::cout << "Generated C Functions: " << std::endl;
 
     Mustache::mustache headerTemplate = CreateMustacheNoEscape
@@ -210,13 +326,7 @@ extern "C"
 )");
 
     Mustache::mustache headerGuardTemplate = CreateMustacheNoEscape("C_{{project_name_upper}}_CODE_GEN_H");
-    Mustache::mustache methodDeclaration = CreateMustacheNoEscape("{{return_value}} {{method_name}}({{arguments}});");
-    Mustache::mustache methodTemplte = CreateMustacheNoEscape(R"(
-    {{return_value}} {{method_name}}({{arguments}})
-    {
-        {{method_body}} 
-    }
-    )");
+
 
     std::string projectName = workSpaceInfo.GetProjectName();
     projectName = Utils::replace(projectName, " ", "_");
@@ -246,53 +356,13 @@ extern "C"
         {
             std::cout << "SOURCE FILE: " << workSpaceInfo.FullPathToWorkspace(pclassInfo->getSourceFile()) << std::endl;
             srcIncludeFiles.insert(workSpaceInfo.FullPathToWorkspace(pclassInfo->getSourceFile()).string());
+            GenerateConstructors(*pclassInfo, method_declarations, method_implementations);
+
             auto& methodInfos = pclassInfo->GetMethods();
             for(auto const& methodInfo : methodInfos)
             {
-                bool canGenerate = true;
-                for(auto& argInfo : methodInfo.GetArguments())
-                {
-                    if(!CCompatibleArgument(argInfo.GetCursor().getType()))
-                    {
-                        canGenerate = false;
-                        break;
-                    }
-                }
-                if(!canGenerate)
-                {
-                    continue;
-                }
-
-                std::string argumentStr = "";
-                if(methodInfo.IsConst())
-                {
-                    argumentStr += "void const* thisPtr";
-                }
-                else
-                {
-                    argumentStr += "void* thisPtr";
-                }
-
-                for(auto& argInfo : methodInfo.GetArguments())
-                {
-                    argumentStr += ", " + GetArgumentTypeForC(argInfo.GetCursor().getType()) + " " + argInfo.GetName();
-                }
-
-                Mustache::data methodData;
-                methodData["method_name"] = GetFunctionNameForC(methodInfo);
-                methodData["arguments"] = argumentStr;
-                methodData["return_value"] = GetReturnTypeForC(methodInfo.getCurosr().GetReturnType());
-                methodData["method_body"] = GetFunctionBody(methodInfo);
-
-                methodInfo.GetArgumentCount();
-
-                method_declarations.push_back(Mustache::data{"method_declaration", methodDeclaration.render(methodData)});
-                method_implementations.push_back(Mustache::data{"method_implementation", methodTemplte.render(methodData)});
-
-                std::cout << "\t declaration: " << methodDeclaration.render(methodData) << std::endl;
-                std::cout << "\t method: " << methodTemplte.render(methodData) << std::endl;
+                GenerateMethods(methodInfo, method_declarations, method_implementations);
             }
-            std::cout << "Generating code for class: " << pclassInfo->getCurosr().getDisplayName() << std::endl;
         }
     }
 

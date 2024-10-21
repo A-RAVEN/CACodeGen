@@ -28,7 +28,7 @@ MethodInfo::MethodInfo(const Cursor& cursor
     , m_OwnerClass(ownerClass)
     , m_Spelling(cursor.getSpelling())
 {
-    assert(cursor.getKind() == CXCursor_CXXMethod);
+    assert(cursor.getKind() == CXCursor_CXXMethod || cursor.getKind() == CXCursor_Constructor);
     std::cout << "Method: " << cursor.getDisplayName() 
     << "\n\tspelling: " << cursor.getSpelling() 
     << "\n\tcanonical: " << cursor.getType().GetCanonicalType().GetDisplayName() 
@@ -62,3 +62,7 @@ int MethodInfo::GetArgumentCount(void) const
     return getCurosr().getType().GetArgumentCount();
 }
 
+bool MethodInfo::IsDefaultConstructor() const
+{
+    return clang_CXXConstructor_isDefaultConstructor(getCurosr().get());
+}

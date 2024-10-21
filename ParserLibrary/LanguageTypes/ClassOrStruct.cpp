@@ -16,6 +16,7 @@ ClassOrStructInfo::ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerStat
     m_IsStruct = cursor.getKind() == CXCursor_StructDecl;
     std::cout << "class Info:" << cursor.getDisplayName() << " namespace:" << std::endl;
     auto children = getCurosr().getChildren();
+    bool anyDefaultConstructor = false;
     for(auto& child : children)
     {
         switch (child.getKind())
@@ -41,8 +42,19 @@ ClassOrStructInfo::ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerStat
             // method
             case CXCursor_CXXMethod:
                 m_Methods.emplace_back(child, codeInfoState, this);
+                break;
+            case CXCursor_Constructor:
+                std::cout << "constructor found: " << cursor.getDisplayName() << std::endl;
+                if(clang_CXXConstructor_isDefaultConstructor(child.get()))
+                {
+                    anyDefaultConstructor = true;
+                    std::cout << "default constructor found: " << cursor.getDisplayName() << std::endl;
+                }
+                m_Constructors.emplace_back(child, codeInfoState, this);
+                break;
             default:
                 break;
         }
+        m_DefaultConstructable = anyDefaultConstructor || m_Constructors.empty();
     }
 }

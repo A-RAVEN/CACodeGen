@@ -23,10 +23,15 @@ namespace TestNameSpaceB
             int b;
         };
         using TType = int;
+
+
         void TestFunction(int a, float& b, int* c, TType d, TType& e
         , TestClass1 f, TestClass1& g, TestClass1* h){}
 
 
         bool TestFunction1(double aa){ return true;};
+        private:
+TestProp() : x(0), y(0) {} 
+
     };
 }
