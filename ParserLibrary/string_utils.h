@@ -59,6 +59,12 @@ namespace Utils
         return source_string;
     }
 
+    static std::string CapitalToUpper(std::string& source_string)
+    {
+        std::transform(source_string.begin(), source_string.begin() + 1, source_string.begin(), ::toupper);
+        return source_string;
+    }
+
     static std::string join(std::vector<std::string> context_list, std::string separator)
     {
         std::string ret_string;

@@ -61,6 +61,8 @@ public:
     std::vector<Cursor> getChildren() const;
     void visitChildren(Visitor visitor, void* data = nullptr);
 
+    uint32_t getHash() const;
+
 private:
     CXCursor m_handle;
 };

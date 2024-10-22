@@ -6,12 +6,7 @@ namespace TestNameSpaceB
 {
     using namespace TestNameSpaceA;
 
-    class TestClass1
-    {
-        public:
-        int c1x;
-    };
-
+    class TestClass1;
     class CAMETA(MetaDataInInclude(1, 3.0f), CodeGen) TestProp : public BaseClassTest
     {
     public:
@@ -26,12 +21,24 @@ namespace TestNameSpaceB
 
 
         void TestFunction(int a, float& b, int* c, TType d, TType& e
-        , TestClass1 f, TestClass1& g, TestClass1* h){}
+        , TestClass1 const& f, TestClass1& g, TestClass1* h){}
 
 
-        bool TestFunction1(double aa){ return true;};
+        TestProp() : x(0), y(0) {} 
+        TestProp(TestProp const& other) = default;
+        TestProp(int xx, int yy) : x(xx), y(yy) {} 
+        //bool TestFunction1(double aa){ return true;};
+        TestProp Clone() const { return *this; }
+        InnerStruct Inner() const { return InnerStruct(); }
+        TestClass1 GenTestClass1() const;
         private:
-TestProp() : x(0), y(0) {} 
 
     };
+
+    class CAMETA(CodeGen) TestClass1
+    {
+        public:
+        int c1x;
+    };
+
 }

@@ -146,3 +146,8 @@ std::vector<Cursor> Cursor::getChildren(void) const
 }
 
 void Cursor::visitChildren(Visitor visitor, void* data) { clang_visitChildren(m_handle, visitor, data); }
+
+uint32_t Cursor::getHash() const
+{
+    return clang_hashCursor(m_handle);
+}

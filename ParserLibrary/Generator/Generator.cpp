@@ -12,8 +12,11 @@ static Mustache::mustache CreateMustacheNoEscape(const char* templateStr)
 
 bool IsOpaqueType(CursorType cursorType)
 {
-    return cursorType.GetCanonicalType().GetKind() == CXType_Elaborated && !cursorType.IsBuiltInType();
+    return (cursorType.GetCanonicalType().GetKind() == CXType_Elaborated || 
+        cursorType.GetCanonicalType().GetKind() == CXType_Record)
+     && !cursorType.IsBuiltInType();
 }
+
 
 bool CCompatibleArgument(CursorType cursorType)
 {
@@ -29,7 +32,7 @@ bool CCompatibleArgument(CursorType cursorType)
     return false;
 }
 
-std::string GetArgumentTypeForC(CursorType cursorType)
+std::string GetArgumentTypeNameForC(CursorType cursorType)
 {
     bool hasConst = cursorType.IsConst();
     bool needPointer = cursorType.IsReferenceOrPointer();
@@ -40,10 +43,25 @@ std::string GetArgumentTypeForC(CursorType cursorType)
     cursorType = cursorType.GetCanonicalType();
     bool isOpaqueType = IsOpaqueType(cursorType);
 
+    return (hasConst ? "Const" : "") +  (isOpaqueType ? "VoidPtr" : Utils::CapitalToUpper(cursorType.GetCanonicalType().GetDisplayName()));
+}
+
+std::string GetArgumentTypeForC(CursorType cursorType)
+{
+    bool hasConst = cursorType.IsConst();
+    bool needPointer = cursorType.IsReferenceOrPointer();
+    if(needPointer)
+    {
+        cursorType = cursorType.GetPointeeType();
+    }
+    cursorType = cursorType.GetCanonicalType();
+    bool isOpaqueType = IsOpaqueType(cursorType);
+    needPointer = needPointer || isOpaqueType;
+
     Mustache::mustache argumentTemplate = CreateMustacheNoEscape("{{const}}{{typename}}{{pointer}}");
     Mustache::data data;
     data["const"] = hasConst ? "const " : "";
-    data["typename"] = isOpaqueType ? "void*" : cursorType.GetCanonicalType().GetDisplayName();
+    data["typename"] = isOpaqueType ? "void" : cursorType.GetCanonicalType().GetDisplayName();
     data["pointer"] = needPointer ? "*" : "";
     return argumentTemplate.render(data);
 }
@@ -64,11 +82,12 @@ std::string GetReturnTypeForC(CursorType cursorType)
     }
     cursorType = cursorType.GetCanonicalType();
     bool isOpaqueType = IsOpaqueType(cursorType);
+    needPointer = needPointer || isOpaqueType;
 
     Mustache::mustache returnTypeTemplate = CreateMustacheNoEscape("{{const}}{{typename}}{{pointer}}");
     Mustache::data data;
     data["const"] = hasConst ? "const " : "";
-    data["typename"] = isOpaqueType ? "void*" : cursorType.GetDisplayName();
+    data["typename"] = isOpaqueType ? "void" : cursorType.GetDisplayName();
     data["pointer"] = needPointer ? "*" : "";
     return returnTypeTemplate.render(data);
 }
@@ -111,9 +130,31 @@ std::string GetFunctionNameForC(MethodInfo const& methodInfo)
     return functionName;
 }
 
-std::string GetCustructorForC(ClassOrStructInfo const& classInfo)
+std::string GetCustructorNameForC(ClassOrStructInfo const& classInfo, std::string const& postfix)
 {
-    return classInfo.getCurosr().getDisplayName() + "_ctor";
+    return "New_" + classInfo.getCurosr().getDisplayName() + postfix;
+}
+
+std::string CallCopyConstructor(ClassOrStructInfo const& classInfo, std::string const& srcPtr)
+{
+    std::string constructorName = GetCustructorNameForC(classInfo, "_Copy");
+    return constructorName + "(" + srcPtr + ")";
+}
+
+std::string GetDestructorNameForC(ClassOrStructInfo const& classInfo)
+{
+    return "Release_" + classInfo.getCurosr().getDisplayName();
+}
+
+std::string GetCursorConversion(Cursor const& cursor, bool isConst, bool dereference = false)
+{
+    Mustache::mustache conversionTmp = CreateMustacheNoEscape("{{dereference}}({{const}}{{typename}}*)");
+    std::string classTypeName = cursor.getType().GetCanonicalType().GetDisplayName();
+    Mustache::data data;
+    data["const"] = isConst ? "const " : "";
+    data["typename"] = classTypeName;
+    data["dereference"] = dereference ? "*" : "";
+    return conversionTmp.render(data);
 }
 
 std::string GetCallerTypeC2CPPConversion(MethodInfo const& methodInfo)
@@ -136,18 +177,17 @@ bool ReturnTypeNeedCopyAllocation(CursorType cursorType)
     return isOpaqueType && !needPointer;
 }
 
-std::string GetFunctionBody(MethodInfo const& methodInfo)
+std::string GetFunctionBody(CodeInfoContainer const& codeInfoContainer, MethodInfo const& methodInfo)
 {
-    std::string args = "";
+    std::vector<std::string> args;
     for(auto& argInfo : methodInfo.GetArguments())
     {
-        bool first = args.empty();
-        args += (first ? "" : ", ") + GetArgumentC2CPPConversion(argInfo.GetCursor());
+        args.push_back(GetArgumentC2CPPConversion(argInfo.GetCursor()));
     }
     std::cout << "TEST: >" << std::endl;
     Mustache::mustache bodyTemplate = CreateMustacheNoEscape(R"(
     {{#should_return}}auto returnVal = {{/should_return}}({{caller_conversion}}thisPtr)->{{function_name}}({{arguments}});
-    {{#should_return}}return {{#direct_return}}returnVal{{/direct_return}}{{#allocate_return}}returnVal{{/allocate_return}};{{/should_return}}
+    {{#should_return}}return {{#direct_return}}returnVal{{/direct_return}}{{#allocate_return}}{{copy_construct_return}}{{/allocate_return}};{{/should_return}}
     )");
 
     bool needCopyAllocation = ReturnTypeNeedCopyAllocation(methodInfo.GetReturnType());
@@ -157,14 +197,40 @@ std::string GetFunctionBody(MethodInfo const& methodInfo)
     Mustache::data data;
     data["caller_conversion"] = GetCallerTypeC2CPPConversion(methodInfo);
     data["function_name"] = methodInfo.GetSpelling();
-    data["arguments"] = args;
+    data["arguments"] = Utils::join(args, ", ");
     data.set("should_return", methodInfo.HasReturnType());
     data.set("direct_return", !needCopyAllocation);
     data.set("allocate_return", needCopyAllocation);
+
+    if(needCopyAllocation)
+    {
+        auto returnValDecl = methodInfo.GetReturnType().GetDeclaration();
+        auto returnValClassInfo = codeInfoContainer.FindClassOrStruct(returnValDecl);
+        bool resultCopyConstructable = returnValClassInfo->CopyConstructable();
+        assert(resultCopyConstructable);
+        data["copy_construct_return"] = CallCopyConstructor(*returnValClassInfo.get(), "&returnVal");
+    }
+
     return bodyTemplate.render(data);
 }
 
-void ICodeGenerator::GenerateMethods(MethodInfo const& methodInfo
+void GenerateHandleDecl(CodeInfoContainer const& codeInfoContainer, ClassOrStructInfo const& classInfo
+, Mustache::data& outHandleDeclarations)
+{
+    auto classFullName = classInfo.GetFullName("_");
+    Mustache::mustache defaultDestructorImpl = CreateMustacheNoEscape(R"(
+        struct {{handle_name}}
+        {
+            void* objPtr;
+        };
+    )");
+
+    Mustache::data handleData;
+    handleData["handle_name"] = "H_" + classFullName;
+    outHandleDeclarations.push_back(Mustache::data{"handle_declaration", defaultDestructorImpl.render(handleData)});
+}
+
+void ICodeGenerator::GenerateMethods(CodeInfoContainer const& codeInfoContainer, MethodInfo const& methodInfo
 , Mustache::data& outMethodDeclarations
 , Mustache::data& outMethodImplementations)
 {
@@ -191,7 +257,7 @@ void ICodeGenerator::GenerateMethods(MethodInfo const& methodInfo
     methodData["method_name"] = GetFunctionNameForC(methodInfo);
     methodData["arguments"] = argumentsDeclTemplate.render(argumentsDeclData);
     methodData["return_value"] = GetReturnTypeForC(methodInfo.getCurosr().GetReturnType());
-    methodData["method_body"] = GetFunctionBody(methodInfo);
+    methodData["method_body"] = GetFunctionBody(codeInfoContainer, methodInfo);
 
     outMethodDeclarations.push_back(Mustache::data{"method_declaration", methodDeclaration.render(methodData)});
     outMethodImplementations.push_back(Mustache::data{"method_implementation", methodTemplte.render(methodData)});
@@ -200,16 +266,63 @@ void ICodeGenerator::GenerateMethods(MethodInfo const& methodInfo
     std::cout << "\t method: " << methodTemplte.render(methodData) << std::endl;
 }
 
+void GenerateDestructor(ClassOrStructInfo const& classInfo
+, Mustache::data& outMethodDeclarations
+, Mustache::data& outMethodImplementations)
+{
+    std::string destructorName = GetDestructorNameForC(classInfo);
+    std::string conversion = GetCursorConversion(classInfo.getCurosr(), false);
+    Mustache::data defaultDestructorData;
+    defaultDestructorData["method_name"] = destructorName;
+    defaultDestructorData["conversion"] = conversion;
+    Mustache::mustache defaultDestructorDecl = CreateMustacheNoEscape("CAINTERFACE void {{method_name}}(void* objPtr);");
+    Mustache::mustache defaultDestructorImpl = CreateMustacheNoEscape(R"(
+        CAINTERFACE void {{method_name}}(void* objPtr)
+        {
+            delete {{conversion}}objPtr;
+        }
+    )");
+    outMethodDeclarations.push_back(Mustache::data{"method_declaration", defaultDestructorDecl.render(defaultDestructorData)});
+    outMethodImplementations.push_back(Mustache::data{"method_implementation", defaultDestructorImpl.render(defaultDestructorData)});
+}
+
+
+
+void GenerateCopyConstructor(ClassOrStructInfo const& classInfo
+, Mustache::data& outMethodDeclarations
+, Mustache::data& outMethodImplementations)
+{
+    if(classInfo.CopyConstructable())
+    {
+        std::string constructorName = GetCustructorNameForC(classInfo, "_Copy");
+        std::string conversion = GetCursorConversion(classInfo.getCurosr(), true, true);
+        Mustache::data copyCtorData;
+        copyCtorData["method_name"] = constructorName;
+        copyCtorData["conversion"] = conversion;
+        copyCtorData["class_name"] = classInfo.getCurosr().getType().GetCanonicalType().GetDisplayName();
+        Mustache::mustache copyConstructorDeclTemplate = CreateMustacheNoEscape("CAINTERFACE void* {{method_name}}(const void* srcPtr);");
+        Mustache::mustache copyConstructorImpl = CreateMustacheNoEscape(R"(
+            CAINTERFACE void* {{method_name}}(const void* srcPtr)
+            {
+                return new {{class_name}}({{conversion}}srcPtr);
+            }
+        )");
+        outMethodDeclarations.push_back(Mustache::data{"method_declaration", copyConstructorDeclTemplate.render(copyCtorData)});
+        outMethodImplementations.push_back(Mustache::data{"method_implementation", copyConstructorImpl.render(copyCtorData)});
+    }
+}
+
 void GenerateConstructors(ClassOrStructInfo const& classInfo
 , Mustache::data& outMethodDeclarations
 , Mustache::data& outMethodImplementations)
 {
-    std::string constructorName = GetCustructorForC(classInfo);
-
+    //Default Constructor
     if(classInfo.DefaultConstructable())
     {
+        std::string constructorName = GetCustructorNameForC(classInfo, "");
+        Mustache::mustache defaultConstructorDeclTemplate = CreateMustacheNoEscape("CAINTERFACE void* {{method_name}}();");
         Mustache::mustache defaultConstructorImpl = CreateMustacheNoEscape(R"(
-            void* {{method_name}}()
+            CAINTERFACE void* {{method_name}}()
             {
                 return new {{class_name}}();
             }
@@ -218,13 +331,11 @@ void GenerateConstructors(ClassOrStructInfo const& classInfo
         defaultConstructorData["method_name"] = constructorName;
         defaultConstructorData["class_name"] = classInfo.getCurosr().getType().GetCanonicalType().GetDisplayName();
 
-        outMethodDeclarations.push_back(Mustache::data{"method_declaration", "void* " + constructorName + "();"});
+        outMethodDeclarations.push_back(Mustache::data{"method_declaration", defaultConstructorDeclTemplate.render(defaultConstructorData)});
         outMethodImplementations.push_back(Mustache::data{"method_implementation", defaultConstructorImpl.render(defaultConstructorData)});
     }
 
-    Mustache::mustache argumentsDeclTemplate = CreateMustacheNoEscape("{{thisPtrArgDecl}}{{#argDecls}}, {{argDecl}}{{/argDecls}}");
-
-    auto& methodInfos = classInfo.GetMethods();
+    auto& methodInfos = classInfo.GetConstructors();
     for(auto const& methodInfo : methodInfos)
     {
         bool canGenerate = true;
@@ -239,28 +350,34 @@ void GenerateConstructors(ClassOrStructInfo const& classInfo
         if(canGenerate && !methodInfo.IsDefaultConstructor())
         {
             auto& constructorArgs = methodInfo.GetArguments();
-
-            if(constructorArgs.size() > 0)
+            std::vector<std::string> argDecls;
+            std::vector<std::string> argConversions;
+            std::vector<std::string> argTypes;
+            for(auto& argInfo : constructorArgs)
             {
-                std::string firstArg = GetArgumentTypeForC(constructorArgs[0].GetCursor().getType()) + " " + constructorArgs[0].GetName();
-                Mustache::data argDecls = Mustache::data::type::list;
-                for(int i = 1; i < constructorArgs.size(); ++i)
-                {
-                    argDecls.push_back(Mustache::data{"argDecl", GetArgumentTypeForC(constructorArgs[i].GetCursor().getType()) + " " + constructorArgs[i].GetName()});
-                }
-   
+                argDecls.push_back(GetArgumentTypeForC(argInfo.GetCursor().getType()) + " " + argInfo.GetName());
+                argConversions.push_back(GetArgumentC2CPPConversion(argInfo.GetCursor()));
+                argTypes.push_back(GetArgumentTypeNameForC(argInfo.GetCursor().getType()));
             }
+
+            std::string constructorName = GetCustructorNameForC(classInfo, "_" + Utils::join(argTypes, "_"));
+
+            Mustache::mustache constructorDeclTemplate = CreateMustacheNoEscape("CAINTERFACE void* {{method_name}}({{argDecls}});");
             Mustache::mustache constructorTemplate = CreateMustacheNoEscape(R"(
-            void* {{method_name}}({{arguments}})
+            CAINTERFACE void* {{method_name}}({{argDecls}})
             {
-                return new {{class_name}}();
+                return new {{class_name}}({{args}});
             }
             )");
 
-            Mustache::data defaultConstructorData;
-            defaultConstructorData["method_name"] = constructorName;
-            defaultConstructorData["class_name"] = classInfo.getCurosr().getType().GetCanonicalType().GetDisplayName();
+            Mustache::data constructorData;
+            constructorData["method_name"] = constructorName;
+            constructorData["class_name"] = classInfo.getCurosr().getType().GetCanonicalType().GetDisplayName();
+            constructorData["argDecls"] = Utils::join(argDecls, ", ");
+            constructorData["args"] = Utils::join(argConversions, ", ");
 
+            outMethodDeclarations.push_back(Mustache::data{"method_declaration", constructorDeclTemplate.render(constructorData)});
+            outMethodImplementations.push_back(Mustache::data{"method_implementation", constructorTemplate.render(constructorData)});
         }
     }
 
@@ -270,9 +387,9 @@ void GenerateConstructors(ClassOrStructInfo const& classInfo
 void ICodeGenerator::GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer)
 {
 
-    methodDeclaration = CreateMustacheNoEscape("{{return_value}} {{method_name}}({{arguments}});");
+    methodDeclaration = CreateMustacheNoEscape("CAINTERFACE {{return_value}} {{method_name}}({{arguments}});");
     methodTemplte = CreateMustacheNoEscape(R"(
-    {{return_value}} {{method_name}}({{arguments}})
+    CAINTERFACE {{return_value}} {{method_name}}({{arguments}})
     {
         {{method_body}} 
     }
@@ -291,6 +408,8 @@ void ICodeGenerator::GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoCo
 {{#header_includes}}
 #include "{{headfile_name}}"
 {{/header_includes}}
+#include <CAMeta/CAMetaCodeGenCommon.h>
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -313,6 +432,7 @@ extern "C"
 {{#source_includes}}
 #include "{{headfile_name}}"
 {{/source_includes}}
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -351,17 +471,19 @@ extern "C"
 
     for(auto const& pclassInfo : codeInfoContainer.GetAllClasses())
     {
-        auto pCodeGenAttribute = pclassInfo->getMetaData().GetPropertyInfo("CodeGen");
+        auto pCodeGenAttribute = pclassInfo->GetPropertyInfoInParents("CodeGen");
         if(pCodeGenAttribute)
         {
             std::cout << "SOURCE FILE: " << workSpaceInfo.FullPathToWorkspace(pclassInfo->getSourceFile()) << std::endl;
             srcIncludeFiles.insert(workSpaceInfo.FullPathToWorkspace(pclassInfo->getSourceFile()).string());
             GenerateConstructors(*pclassInfo, method_declarations, method_implementations);
+            GenerateCopyConstructor(*pclassInfo, method_declarations, method_implementations);
+            GenerateDestructor(*pclassInfo, method_declarations, method_implementations);
 
             auto& methodInfos = pclassInfo->GetMethods();
             for(auto const& methodInfo : methodInfos)
             {
-                GenerateMethods(methodInfo, method_declarations, method_implementations);
+                GenerateMethods(codeInfoContainer, methodInfo, method_declarations, method_implementations);
             }
         }
     }

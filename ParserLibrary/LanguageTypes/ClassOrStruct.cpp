@@ -17,6 +17,7 @@ ClassOrStructInfo::ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerStat
     std::cout << "class Info:" << cursor.getDisplayName() << " namespace:" << std::endl;
     auto children = getCurosr().getChildren();
     bool anyDefaultConstructor = false;
+    bool anyCopyConstructor = false;
     for(auto& child : children)
     {
         switch (child.getKind())
@@ -50,11 +51,43 @@ ClassOrStructInfo::ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerStat
                     anyDefaultConstructor = true;
                     std::cout << "default constructor found: " << cursor.getDisplayName() << std::endl;
                 }
-                m_Constructors.emplace_back(child, codeInfoState, this);
+                else if(clang_CXXConstructor_isCopyConstructor(child.get()))
+                {
+                    anyCopyConstructor = true;
+                }
+                else
+                {
+                    m_Constructors.emplace_back(child, codeInfoState, this);
+                }
                 break;
             default:
                 break;
         }
         m_DefaultConstructable = anyDefaultConstructor || m_Constructors.empty();
+        m_CopyConstructable = anyCopyConstructor || m_Constructors.empty();
     }
+}
+
+MetaPropertyInfo const* ClassOrStructInfo::GetPropertyInfoInParents(std::string const& propertyName) const
+{
+    ClassOrStructInfo const* currentClass = this;
+    while(currentClass != nullptr)
+    {
+        auto propertyInfo = currentClass->getMetaData().GetPropertyInfo(propertyName);
+        if(propertyInfo != nullptr)
+        {
+            return propertyInfo;
+        }
+        currentClass = currentClass->m_OwnerClass;
+    }
+    return nullptr;
+}
+
+std::string ClassOrStructInfo::GetFullName(std::string const& separator) const
+{
+    if(m_NameSpace == nullptr)
+    {
+        return getCurosr().getDisplayName();
+    }
+    return m_NameSpace->GetFullNameSpace(separator) + separator + getCurosr().getDisplayName();
 }

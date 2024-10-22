@@ -5,10 +5,26 @@ CodeInfoContainerState::CodeInfoContainerState(CodeInfoContainer* container)
 {
 }
 
+std::shared_ptr<ClassOrStructInfo> CodeInfoContainer::FindClassOrStruct(Cursor const& classDefinitionCursor) const
+{
+    auto found =  m_CursorToClassMap.find(classDefinitionCursor.getHash());
+    if(found != m_CursorToClassMap.end())
+    {
+        return m_AllClasses[found->second];
+    }
+    return nullptr;
+}
+
 std::shared_ptr<ClassOrStructInfo> CodeInfoContainerState::AddClassOrStruct(Cursor const& classDefinitionCursor, ClassOrStructInfo const* ownerClass)
 {
+    auto found =  m_Container->m_CursorToClassMap.find(classDefinitionCursor.getHash());
+    if(found != m_Container->m_CursorToClassMap.end())
+    {
+        return m_Container->m_AllClasses[found->second];
+    }
     auto classInfo = std::make_shared<ClassOrStructInfo>(classDefinitionCursor, this, ownerClass);
     m_Container->m_AllClasses.push_back(classInfo);
+    m_Container->m_CursorToClassMap.insert({classDefinitionCursor.getHash(), m_Container->m_AllClasses.size() - 1});
     if(m_CurrentNameSpace == nullptr)
     {
         m_Container->m_RootClasses.push_back(classInfo);

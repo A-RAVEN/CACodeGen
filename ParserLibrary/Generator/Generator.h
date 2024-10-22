@@ -8,7 +8,7 @@ class ICodeGenerator
 {
 public:
     void GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer);
-    void GenerateMethods(MethodInfo const& methodInfo
+    void GenerateMethods(CodeInfoContainer const& codeInfoContainer,MethodInfo const& methodInfo
     , Mustache::data& outMethodDeclarations
     , Mustache::data& outMethodImplementations);
 

@@ -19,7 +19,12 @@ public:
     ClassOrStructInfo(const Cursor& cursor, CodeInfoContainerState* codeInfoState, ClassOrStructInfo const* ownerClass = nullptr);
     virtual ~ClassOrStructInfo(void) {}
     std::vector<MethodInfo> const& GetMethods() const { return m_Methods; }
+    std::vector<MethodInfo> const& GetConstructors() const { return m_Constructors; }
+    MetaPropertyInfo const* GetPropertyInfoInParents(std::string const& propertyName) const;
+    std::string GetFullName(std::string const& separator = "::") const;
+    
     bool DefaultConstructable() const { return m_DefaultConstructable; }
+    bool CopyConstructable() const { return m_CopyConstructable; }
 private:
     bool m_IsStruct;
     std::vector<BaseClassInfo> m_BaseClasses;
@@ -29,4 +34,5 @@ private:
     std::vector<MethodInfo> m_Methods;
     std::vector<MethodInfo> m_Constructors;
     bool m_DefaultConstructable;
+    bool m_CopyConstructable;
 };
