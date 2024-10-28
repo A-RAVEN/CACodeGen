@@ -19,6 +19,7 @@ namespace TestNameSpaceB
         };
         using TType = int;
 
+        InnerStruct exampleStruct{};
 
         void TestFunction(int a, float& b, int* c, TType d, TType& e
         , TestClass1 const& f, TestClass1& g, TestClass1* h){}

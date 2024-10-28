@@ -17,6 +17,8 @@ add_subdirectory(ParserLibrary)
 add_subdirectory(MetaRuntime)
 add_subdirectory(ReflectionAndSerialize)
 add_subdirectory(MetaParser)
+add_subdirectory(CInterfaceCodeGen)
+add_subdirectory(CSharpBindingsCodeGen)
 add_subdirectory(Test)
 
 

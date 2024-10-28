@@ -20,6 +20,7 @@ public:
     virtual ~ClassOrStructInfo(void) {}
     std::vector<MethodInfo> const& GetMethods() const { return m_Methods; }
     std::vector<MethodInfo> const& GetConstructors() const { return m_Constructors; }
+    std::vector<FieldInfo> const& GetFields() const { return m_Fields; }
     MetaPropertyInfo const* GetPropertyInfoInParents(std::string const& propertyName) const;
     std::string GetFullName(std::string const& separator = "::") const;
     

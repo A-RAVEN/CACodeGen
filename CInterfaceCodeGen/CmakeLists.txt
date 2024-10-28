@@ -1,0 +1,8 @@
+file(GLOB_RECURSE HEADERS "*.h")
+file(GLOB_RECURSE SOURCES "*.cpp")
+
+add_library(CACInterfaceCodeGen SHARED ${HEADERS} ${SOURCES})
+set_target_properties(CACInterfaceCodeGen PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+
+target_link_libraries(CACInterfaceCodeGen PUBLIC CAParserLibrary)
+target_include_directories(CACInterfaceCodeGen PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

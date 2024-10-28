@@ -8,101 +8,125 @@ extern "C"
 {
 #endif
     
-            CAINTERFACE void* New_InnerStruct()
-            {
-                return new TestNameSpaceB::TestProp::InnerStruct();
-            }
-        
-    
-            CAINTERFACE void* New_InnerStruct_Copy(const void* srcPtr)
-            {
-                return new TestNameSpaceB::TestProp::InnerStruct(*(const TestNameSpaceB::TestProp::InnerStruct*)srcPtr);
-            }
-        
-    
-        CAINTERFACE void Release_InnerStruct(void* objPtr)
-        {
-            delete (TestNameSpaceB::TestProp::InnerStruct*)objPtr;
-        }
-    
-    
-            CAINTERFACE void* New_TestProp()
-            {
-                return new TestNameSpaceB::TestProp();
-            }
-        
-    
-            CAINTERFACE void* New_TestProp_Int_Int(int xx, int yy)
-            {
-                return new TestNameSpaceB::TestProp(xx, yy);
-            }
-            
-    
-            CAINTERFACE void* New_TestProp_Copy(const void* srcPtr)
-            {
-                return new TestNameSpaceB::TestProp(*(const TestNameSpaceB::TestProp*)srcPtr);
-            }
-        
-    
-        CAINTERFACE void Release_TestProp(void* objPtr)
-        {
-            delete (TestNameSpaceB::TestProp*)objPtr;
-        }
-    
-    
-    CAINTERFACE void TestProp_TestFunction(void* thisPtr, int a, float* b, int* c, int d, int* e, void* f, void* g, void* h)
+    CAINTERFACE void* New_InnerStruct()
     {
-        
-    ((TestNameSpaceB::TestProp*)thisPtr)->TestFunction(a, *b, c, d, *e, *(const TestNameSpaceB::TestClass1*)f, *(TestNameSpaceB::TestClass1*)g, (TestNameSpaceB::TestClass1*)h);
+        return new TestNameSpaceB::TestProp::InnerStruct();
+    }
     
-     
+    CAINTERFACE void* New_InnerStruct_Copy(const void* srcPtr)
+    {
+        return new TestNameSpaceB::TestProp::InnerStruct(*(const TestNameSpaceB::TestProp::InnerStruct*)srcPtr);
+    }
+    
+    CAINTERFACE void Release_InnerStruct(void* objPtr)
+    {
+        delete (TestNameSpaceB::TestProp::InnerStruct*)objPtr;
+    }
+    
+    CAINTERFACE void Set_InnerStruct_a(H_InnerStruct thisHandle, const int value)
+    {
+        ((TestNameSpaceB::TestProp::InnerStruct*)thisHandle.objPtr)->a = value;
+    }
+    
+    CAINTERFACE int Get_InnerStruct_a(H_InnerStruct_Const thisHandle)
+    {
+        auto returnVal = ((const TestNameSpaceB::TestProp::InnerStruct*)thisHandle.objPtr)->a;
+        return returnVal;
+    }
+    
+    CAINTERFACE void Set_InnerStruct_b(H_InnerStruct thisHandle, const int value)
+    {
+        ((TestNameSpaceB::TestProp::InnerStruct*)thisHandle.objPtr)->b = value;
+    }
+    
+    CAINTERFACE int Get_InnerStruct_b(H_InnerStruct_Const thisHandle)
+    {
+        auto returnVal = ((const TestNameSpaceB::TestProp::InnerStruct*)thisHandle.objPtr)->b;
+        return returnVal;
+    }
+    
+    CAINTERFACE void* New_TestProp()
+    {
+        return new TestNameSpaceB::TestProp();
+    }
+    
+    CAINTERFACE void* New_TestProp_Int_Int(int xx, int yy)
+    {
+        return new TestNameSpaceB::TestProp(xx, yy);
+    }
+    
+    CAINTERFACE void* New_TestProp_Copy(const void* srcPtr)
+    {
+        return new TestNameSpaceB::TestProp(*(const TestNameSpaceB::TestProp*)srcPtr);
+    }
+    
+    CAINTERFACE void Release_TestProp(void* objPtr)
+    {
+        delete (TestNameSpaceB::TestProp*)objPtr;
     }
     
     
-    CAINTERFACE void* TestProp_Clone(void* thisPtr)
+    
+    
+    
+    CAINTERFACE void Set_TestProp_x(H_TestProp thisHandle, const int value)
     {
-        
-    auto returnVal = ((TestNameSpaceB::TestProp*)thisPtr)->Clone();
-    return New_TestProp_Copy(&returnVal);
-     
+        ((TestNameSpaceB::TestProp*)thisHandle.objPtr)->x = value;
     }
     
-    
-    CAINTERFACE void* TestProp_Inner(void* thisPtr)
+    CAINTERFACE int Get_TestProp_x(H_TestProp_Const thisHandle)
     {
-        
-    auto returnVal = ((TestNameSpaceB::TestProp*)thisPtr)->Inner();
-    return New_InnerStruct_Copy(&returnVal);
-     
+        auto returnVal = ((const TestNameSpaceB::TestProp*)thisHandle.objPtr)->x;
+        return returnVal;
     }
     
-    
-    CAINTERFACE void* TestProp_GenTestClass1(void* thisPtr)
+    CAINTERFACE void Set_TestProp_y(H_TestProp thisHandle, const int value)
     {
-        
-    auto returnVal = ((TestNameSpaceB::TestProp*)thisPtr)->GenTestClass1();
-    return New_TestClass1_Copy(&returnVal);
-     
+        ((TestNameSpaceB::TestProp*)thisHandle.objPtr)->y = value;
     }
     
+    CAINTERFACE int Get_TestProp_y(H_TestProp_Const thisHandle)
+    {
+        auto returnVal = ((const TestNameSpaceB::TestProp*)thisHandle.objPtr)->y;
+        return returnVal;
+    }
     
-            CAINTERFACE void* New_TestClass1()
-            {
-                return new TestNameSpaceB::TestClass1();
-            }
-        
+    CAINTERFACE void Set_TestProp_exampleStruct(H_TestProp thisHandle, const void* value)
+    {
+        ((TestNameSpaceB::TestProp*)thisHandle.objPtr)->exampleStruct = *(TestNameSpaceB::TestProp::InnerStruct*)value;
+    }
     
-            CAINTERFACE void* New_TestClass1_Copy(const void* srcPtr)
-            {
-                return new TestNameSpaceB::TestClass1(*(const TestNameSpaceB::TestClass1*)srcPtr);
-            }
-        
+    CAINTERFACE void* Get_TestProp_exampleStruct(H_TestProp_Const thisHandle)
+    {
+        auto returnVal = ((const TestNameSpaceB::TestProp*)thisHandle.objPtr)->exampleStruct;
+        return New_InnerStruct_Copy(&returnVal);
+    }
     
-        CAINTERFACE void Release_TestClass1(void* objPtr)
-        {
-            delete (TestNameSpaceB::TestClass1*)objPtr;
-        }
+    CAINTERFACE void* New_TestClass1()
+    {
+        return new TestNameSpaceB::TestClass1();
+    }
     
+    CAINTERFACE void* New_TestClass1_Copy(const void* srcPtr)
+    {
+        return new TestNameSpaceB::TestClass1(*(const TestNameSpaceB::TestClass1*)srcPtr);
+    }
+    
+    CAINTERFACE void Release_TestClass1(void* objPtr)
+    {
+        delete (TestNameSpaceB::TestClass1*)objPtr;
+    }
+    
+    CAINTERFACE void Set_TestClass1_c1x(H_TestClass1 thisHandle, const int value)
+    {
+        ((TestNameSpaceB::TestClass1*)thisHandle.objPtr)->c1x = value;
+    }
+    
+    CAINTERFACE int Get_TestClass1_c1x(H_TestClass1_Const thisHandle)
+    {
+        auto returnVal = ((const TestNameSpaceB::TestClass1*)thisHandle.objPtr)->c1x;
+        return returnVal;
+    }
 #ifdef __cplusplus
 }
 #endif

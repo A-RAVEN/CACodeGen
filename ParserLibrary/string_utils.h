@@ -89,4 +89,11 @@ namespace Utils
 
         clang_disposeString(str);
     }
+
+    static Mustache::mustache CreateMustacheNoEscape(const char* templateStr)
+    {
+        Mustache::mustache mustache(templateStr);
+        mustache.set_custom_escape([](const std::string& s) {return s;});
+        return mustache;
+    }
 }

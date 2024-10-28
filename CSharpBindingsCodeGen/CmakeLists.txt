@@ -1,0 +1,9 @@
+file(GLOB_RECURSE HEADERS "*.h")
+file(GLOB_RECURSE SOURCES "*.cpp")
+
+add_library(CSharpBindingsCodeGen SHARED ${HEADERS} ${SOURCES})
+set_target_properties(CSharpBindingsCodeGen PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+
+target_link_libraries(CSharpBindingsCodeGen PUBLIC CAParserLibrary)
+target_link_libraries(CSharpBindingsCodeGen PUBLIC CACInterfaceCodeGen)
+target_include_directories(CSharpBindingsCodeGen PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

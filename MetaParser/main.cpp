@@ -1,8 +1,14 @@
 #include <Parser/parser.h>
 #include <argparse/argparse.hpp>
+#include <Windows.h>
+#include <filesystem>
 
 int main(int argc, char *argv[])
 {
+    std::filesystem::path current_path = std::filesystem::current_path();
+    std::cout << "current path: " << current_path.string() << std::endl;
+
+    //LoadLibrary("CACInterfaceCodeGen.dll");
     std::cout << "PARSER ARGS:" << std::endl;
     for(int i = 0; i < argc; ++i)
     {
@@ -25,6 +31,11 @@ int main(int argc, char *argv[])
     .default_value(std::vector<std::string>{})
     .append();
 
+    program.add_argument("-M", "--modules")
+    .help("codegen module directories")
+    .default_value(std::vector<std::string>{})
+    .append();
+
     program.add_argument("-W", "--workspace")
     .required()
     .help("workspace path");
@@ -43,6 +54,25 @@ int main(int argc, char *argv[])
         std::cout << program <<std::endl;
         return 0;
     }
+
+    auto module_paths = program.get<std::vector<std::string>>("--modules");
+    for(auto& module_path : module_paths)
+    {
+        std::cout << "load codegen modules at: " << module_path << std::endl;
+        std::filesystem::directory_iterator module_dir(module_path);
+        for(auto& entry : module_dir)
+        {
+            if(entry.is_regular_file())
+            {
+                if(entry.path().extension() == ".dll")
+                {
+                    std::cout << "loading: " << entry.path().string() << std::endl;
+                    LoadLibrary(entry.path().string().c_str());
+                }
+            }
+        }
+    }
+
 
     LanguageInfo languageInfo;
     languageInfo.m_cpp_standard = CPPStandard::e2020;

@@ -10,9 +10,44 @@
 extern "C"
 {
 #endif
+    
+    struct H_InnerStruct
+    {
+        void* objPtr;
+    };
+    
+    struct H_InnerStruct_Const
+    {
+        void const* objPtr;
+    };
+    
+    struct H_TestProp
+    {
+        void* objPtr;
+    };
+    
+    struct H_TestProp_Const
+    {
+        void const* objPtr;
+    };
+    
+    struct H_TestClass1
+    {
+        void* objPtr;
+    };
+    
+    struct H_TestClass1_Const
+    {
+        void const* objPtr;
+    };
+
     CAINTERFACE void* New_InnerStruct();
     CAINTERFACE void* New_InnerStruct_Copy(const void* srcPtr);
     CAINTERFACE void Release_InnerStruct(void* objPtr);
+    CAINTERFACE void Set_InnerStruct_a(H_InnerStruct thisHandle, const int value);
+    CAINTERFACE int Get_InnerStruct_a(H_InnerStruct_Const thisHandle);
+    CAINTERFACE void Set_InnerStruct_b(H_InnerStruct thisHandle, const int value);
+    CAINTERFACE int Get_InnerStruct_b(H_InnerStruct_Const thisHandle);
     CAINTERFACE void* New_TestProp();
     CAINTERFACE void* New_TestProp_Int_Int(int xx, int yy);
     CAINTERFACE void* New_TestProp_Copy(const void* srcPtr);
@@ -21,9 +56,17 @@ extern "C"
     CAINTERFACE void* TestProp_Clone(void* thisPtr);
     CAINTERFACE void* TestProp_Inner(void* thisPtr);
     CAINTERFACE void* TestProp_GenTestClass1(void* thisPtr);
+    CAINTERFACE void Set_TestProp_x(H_TestProp thisHandle, const int value);
+    CAINTERFACE int Get_TestProp_x(H_TestProp_Const thisHandle);
+    CAINTERFACE void Set_TestProp_y(H_TestProp thisHandle, const int value);
+    CAINTERFACE int Get_TestProp_y(H_TestProp_Const thisHandle);
+    CAINTERFACE void Set_TestProp_exampleStruct(H_TestProp thisHandle, const void* value);
+    CAINTERFACE void* Get_TestProp_exampleStruct(H_TestProp_Const thisHandle);
     CAINTERFACE void* New_TestClass1();
     CAINTERFACE void* New_TestClass1_Copy(const void* srcPtr);
     CAINTERFACE void Release_TestClass1(void* objPtr);
+    CAINTERFACE void Set_TestClass1_c1x(H_TestClass1 thisHandle, const int value);
+    CAINTERFACE int Get_TestClass1_c1x(H_TestClass1_Const thisHandle);
 #ifdef __cplusplus
 }
 #endif

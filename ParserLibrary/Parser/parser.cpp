@@ -6,6 +6,7 @@
 #include <LanguageTypes/ClassOrStruct.h>
 #include <LanguageTypes/CodeInfoContainer.h>
 #include <Generator/Generator.h>
+#include <Generator/GeneratorManager.h>
 
 class LibClangArguments
 {
@@ -134,8 +135,11 @@ void CodeParser::Parse()
     CodeInfoContainerState containerState(&codeInfoContainer);
     TraverseCodeSpace(cursor, containerState);
 
-    ICodeGenerator codeGenerator{};
-    codeGenerator.GenerateCode(m_WorkSpaceInfo, codeInfoContainer);
+    auto& generatorList = GenerateManager::GetGenerators();
+    for(auto& generator : generatorList)
+    {
+        generator.second->GenerateCode(m_WorkSpaceInfo, codeInfoContainer);
+    }
 
     clang_disposeTranslationUnit(m_TranslationUnit);
     clang_disposeIndex(m_Index);

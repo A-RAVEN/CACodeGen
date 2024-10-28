@@ -7,11 +7,7 @@ class MethodInfo;
 class ICodeGenerator
 {
 public:
-    void GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer);
-    void GenerateMethods(CodeInfoContainer const& codeInfoContainer,MethodInfo const& methodInfo
-    , Mustache::data& outMethodDeclarations
-    , Mustache::data& outMethodImplementations);
-
-    Mustache::mustache methodDeclaration;
-    Mustache::mustache methodTemplte;
+    virtual void GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer) = 0;
+    virtual ~ICodeGenerator() {}
+    virtual std::vector<std::string> RequireGenerators() const { return {}; }
 };

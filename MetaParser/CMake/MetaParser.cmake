@@ -4,12 +4,13 @@ function(meta_parser target_name workspace_dir)
         #PRE_BUILD
         OUTPUT ${workspace_dir}/CodeGen/CodeGen.cpp
         COMMENT "parse meta for ${target_name}"
-        COMMENT "--cppstd=20 --workspace=${workspace_dir} --includes=$<JOIN:$<TARGET_PROPERTY:${target_name},INCLUDE_DIRECTORIES>, >"
+        COMMENT "--cppstd=20 --workspace=${workspace_dir} --includes=$<JOIN:$<TARGET_PROPERTY:${target_name},INCLUDE_DIRECTORIES>, > --modules=${MetaParserOutputDir}"
         COMMAND CAMetaParser
         "--project=${target_name}"
         "--cppstd=20"
         "--workspace=${workspace_dir}"
         "--includes=$<JOIN:$<TARGET_PROPERTY:${target_name},INCLUDE_DIRECTORIES>,;--includes=>"
+        "--modules=$<TARGET_FILE_DIR:CAMetaParser>"
         VERBATIM
         COMMAND_EXPAND_LISTS
     )
