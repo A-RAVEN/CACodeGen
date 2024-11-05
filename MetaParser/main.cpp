@@ -40,6 +40,10 @@ int main(int argc, char *argv[])
     .required()
     .help("workspace path");
 
+    program.add_argument("-O", "--outdir")
+    .required()
+    .help("library output dir");
+
     try {
         program.parse_args(argc, argv);
     }
@@ -99,7 +103,9 @@ int main(int argc, char *argv[])
     workSpaceInfo.SetProjectName(project_name);
     std::cout << "project name: " << project_name << std::endl;
     std::string workspace_path = program.get<std::string>("--workspace");
+    std::string output_path = program.get<std::string>("--outdir");
     workSpaceInfo.SetWorkSpacePath(workspace_path);
+    workSpaceInfo.SetOutputPath(output_path);
     std::cout << "work space: " << workspace_path << std::endl;
     auto include_paths = program.get<std::vector<std::string>>("--includes");
     std::cout << "include paths: " << std::endl;

@@ -21,9 +21,20 @@ void WorkSpaceInfo::SetWorkSpacePath(std::string path)
     m_workspace_path = path;
 }
 
+void WorkSpaceInfo::SetOutputPath(std::string path)
+{
+    std::replace(path.begin(), path.end(), '\\', '/');
+    m_output_path = path;
+}
+
 fs::path WorkSpaceInfo::GetWorkSpacePath() const
 {
     return m_workspace_path;
+}
+
+fs::path WorkSpaceInfo::GetOutputPath() const
+{
+    return m_output_path;
 }
 
 fs::path WorkSpaceInfo::GetCodeGenOutputPath() const

@@ -23,7 +23,9 @@ class WorkSpaceInfo
 public:
     void SetProjectName(std::string name);
     void SetWorkSpacePath(std::string path);
+    void SetOutputPath(std::string path);
     fs::path GetWorkSpacePath() const;
+    fs::path GetOutputPath() const;
     fs::path GetCodeGenOutputPath() const;
     std::string GetWorkSpaceFolderName() const;
     std::string GetProjectName() const;

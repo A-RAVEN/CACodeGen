@@ -29,3 +29,14 @@ public:
 private:
     CodeInfoContainer* m_Container;
 };
+
+class GeneratedCodeResults
+{
+public:
+    GeneratedCodeResults(fs::path const& rootPath);
+    void AddGeneratedHPPFile(std::string filePath, bool absolutePath = true);
+    std::vector<fs::path> const& GetGeneratedHPPFiles() const { return m_GeneratedHPPFiles; }
+private:
+    std::vector<fs::path> m_GeneratedHPPFiles;
+    fs::path m_RootPath;
+};

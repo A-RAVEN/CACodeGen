@@ -109,7 +109,7 @@ void CodeParser::Parse()
     std::fstream temp_parsing_file;
     fs::remove_all(m_WorkSpaceInfo.GetCodeGenOutputPath());
     std::filesystem::create_directories(m_WorkSpaceInfo.GetCodeGenOutputPath());
-    fs::path codegenFilePath = m_WorkSpaceInfo.GetCodeGenOutputPath() / "CodeGen.cpp";
+    fs::path codegenFilePath = m_WorkSpaceInfo.GetCodeGenOutputPath() / "TempCodeGen.cpp";
     temp_parsing_file.open(codegenFilePath, std::ios::out);
     if (!temp_parsing_file.is_open())
     {
@@ -120,7 +120,6 @@ void CodeParser::Parse()
         temp_parsing_file << "#include  <" << include_item.string() << ">" << std::endl;
     }
     temp_parsing_file.close();
-
     auto argStr = clangArgs.GetArguments();
     std::cout << "arguments: " << std::endl;
     for(auto arg : argStr)
@@ -136,13 +135,30 @@ void CodeParser::Parse()
     TraverseCodeSpace(cursor, containerState);
 
     auto& generatorList = GenerateManager::GetGenerators();
+    GeneratedCodeResults codeInfoResults(m_WorkSpaceInfo.GetCodeGenOutputPath());
     for(auto& generator : generatorList)
     {
-        generator.second->GenerateCode(m_WorkSpaceInfo, codeInfoContainer);
+        generator.second->GenerateCode(m_WorkSpaceInfo, codeInfoContainer, codeInfoResults);
     }
 
     clang_disposeTranslationUnit(m_TranslationUnit);
     clang_disposeIndex(m_Index);
+
+    fs::remove(codegenFilePath);
+
+    std::fstream resultCodeGenFile;
+    fs::path resultCodeGenPath = m_WorkSpaceInfo.GetCodeGenOutputPath() / "CodeGen.cpp";
+    resultCodeGenFile.open(resultCodeGenPath, std::ios::out);
+    if (!resultCodeGenFile.is_open())
+    {
+        std::cout << "Could not open the Source Include file: " << codegenFilePath << std::endl;
+    }
+    resultCodeGenFile << "//Generated Final Source File" << std::endl;
+    for (auto include_item : codeInfoResults.GetGeneratedHPPFiles())
+    {
+        resultCodeGenFile << "#include  \"" << include_item.string() << "\"" << std::endl;
+    }
+    resultCodeGenFile.close();
 }
 
 

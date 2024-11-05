@@ -41,6 +41,7 @@ void CodeInfoContainerState::SubNameSpace(std::string nameSpace)
     if(m_CurrentNameSpace == nullptr)
     {
         m_Container->m_RootNameSpaces.push_back(std::make_shared<NameSpaceInfo>(nameSpace, nullptr, false));
+        m_CurrentNameSpace = m_Container->m_RootNameSpaces.back();
     }
     else
     {
@@ -65,4 +66,19 @@ void CodeInfoContainerState::ParentNameSpace()
         return;
     }
     m_CurrentNameSpace = m_CurrentNameSpace->m_ParentNameSpace;
+}
+
+GeneratedCodeResults::GeneratedCodeResults(fs::path const& rootPath) : m_RootPath(rootPath){}
+void GeneratedCodeResults::AddGeneratedHPPFile(std::string filePath, bool absolutePath)
+{
+    std::replace(filePath.begin(), filePath.end(), '\\', '/');
+    if(absolutePath)
+    {
+        auto relativePath = fs::relative(filePath, m_RootPath);
+        m_GeneratedHPPFiles.push_back(relativePath);
+    }
+    else
+    {
+        m_GeneratedHPPFiles.push_back(filePath);
+    }
 }

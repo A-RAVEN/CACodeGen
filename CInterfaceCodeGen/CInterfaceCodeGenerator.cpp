@@ -3,21 +3,15 @@
 #include <LanguageTypes/CodeInfoContainer.h>
 #include <string_utils.h>
 #include <set>
+#include "CInterfaceGeneratorCommon.h"
 
 class CInterfaceGenerator : public ICodeGenerator
 {
 public:
-    virtual void GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer) override;
+    virtual void GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer, GeneratedCodeResults& codeResults) override;
 };
 
 CA_STATIC_GENERATOR(CInterfaceGenerator)
-
-bool IsOpaqueType(CursorType cursorType)
-{
-    return (cursorType.GetCanonicalType().GetKind() == CXType_Elaborated || 
-        cursorType.GetCanonicalType().GetKind() == CXType_Record)
-     && !cursorType.IsBuiltInType();
-}
 
 std::string GetClassOrStructHandleName(ClassOrStructInfo const& classInfo, bool isConst)
 {
@@ -39,20 +33,6 @@ bool CCompatibleArgument(CursorType cursorType)
     return false;
 }
 
-std::string GetArgumentTypeNameForC(CursorType cursorType)
-{
-    bool hasConst = cursorType.IsConst();
-    bool needPointer = cursorType.IsReferenceOrPointer();
-    if(needPointer)
-    {
-        cursorType = cursorType.GetPointeeType();
-    }
-    cursorType = cursorType.GetCanonicalType();
-    bool isOpaqueType = IsOpaqueType(cursorType);
-
-    return (hasConst ? "Const" : "") +  (isOpaqueType ? "VoidPtr" : Utils::CapitalToUpper(cursorType.GetCanonicalType().GetDisplayName()));
-}
-
 std::string GetArgumentTypeForC(CursorType cursorType)
 {
     bool hasConst = cursorType.IsConst();
@@ -62,7 +42,7 @@ std::string GetArgumentTypeForC(CursorType cursorType)
         cursorType = cursorType.GetPointeeType();
     }
     cursorType = cursorType.GetCanonicalType();
-    bool isOpaqueType = IsOpaqueType(cursorType);
+    bool isOpaqueType = CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
     needPointer = needPointer || isOpaqueType;
 
     Mustache::mustache argumentTemplate = Utils::CreateMustacheNoEscape("{{const}}{{typename}}{{pointer}}");
@@ -88,7 +68,7 @@ std::string GetReturnTypeForC(CursorType cursorType)
         cursorType = cursorType.GetPointeeType();
     }
     cursorType = cursorType.GetCanonicalType();
-    bool isOpaqueType = IsOpaqueType(cursorType);
+    bool isOpaqueType = CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
     needPointer = needPointer || isOpaqueType;
 
     Mustache::mustache returnTypeTemplate = Utils::CreateMustacheNoEscape("{{const}}{{typename}}{{pointer}}");
@@ -103,7 +83,7 @@ std::string GetArgumentC2CppConversion(Cursor argCursor)
 {
     CursorType cursorType = argCursor.getType();
     bool hasConst = cursorType.IsConst();
-    bool needPointer = cursorType.IsReferenceOrPointer() || IsOpaqueType(cursorType);
+    bool needPointer = cursorType.IsReferenceOrPointer() || CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
     bool needDereference = needPointer && !cursorType.IsPointer();
     if(cursorType.IsReferenceOrPointer())
     {
@@ -112,7 +92,7 @@ std::string GetArgumentC2CppConversion(Cursor argCursor)
     cursorType = cursorType.GetCanonicalType();
     Mustache::mustache conversionTmp = Utils::CreateMustacheNoEscape("{{dereference}}{{#need_convert}}({{const}}{{typename}}{{pointer}}){{/need_convert}}");
     Mustache::data data;
-    data.set("need_convert", IsOpaqueType(cursorType));
+    data.set("need_convert", CInterfaceCodeGenCommon::IsOpaqueType(cursorType));
     data["const"] = hasConst ? "const " : "";
     data["typename"] = cursorType.GetDisplayName();
     data["pointer"] = needPointer ? "*" : "";
@@ -120,58 +100,10 @@ std::string GetArgumentC2CppConversion(Cursor argCursor)
     return conversionTmp.render(data);
 }
 
-// std::string GetArgumentC2CPPConversion(Cursor argCursor)
-// {
-//     CursorType cursorType = argCursor.getType();
-//     bool hasConst = cursorType.IsConst();
-//     bool needPointer = cursorType.IsReferenceOrPointer() || IsOpaqueType(cursorType);
-//     bool needDereference = needPointer && !cursorType.IsPointer();
-//     if(cursorType.IsReferenceOrPointer())
-//     {
-//         cursorType = cursorType.GetPointeeType();
-//     }
-//     cursorType = cursorType.GetCanonicalType();
-//     Mustache::mustache conversionTmp = Utils::CreateMustacheNoEscape("{{dereference}}{{#need_convert}}({{const}}{{typename}}{{pointer}}){{/need_convert}}{{argname}}");
-//     Mustache::data data;
-//     data.set("need_convert", IsOpaqueType(cursorType));
-//     data["const"] = hasConst ? "const " : "";
-//     data["typename"] = cursorType.GetDisplayName();
-//     data["pointer"] = needPointer ? "*" : "";
-//     data["dereference"] = needDereference ? "*" : "";
-//     data["argname"] = argCursor.getDisplayName();
-//     return conversionTmp.render(data);
-// }
-
-std::string GetFunctionNameForC(MethodInfo const& methodInfo)
-{
-    std::string functionName = methodInfo.GetSpelling();
-    auto owningClass = methodInfo.GetOwnerClass();
-    if(owningClass != nullptr)
-    {
-        functionName = owningClass->getCurosr().getDisplayName() + "_" + functionName;
-    }
-    auto ns = methodInfo.getCurrentNamespace();
-    if(ns != nullptr)
-    {
-        functionName = ns->GetFullNameSpace("_") + "_" + functionName;
-    }
-    return functionName;
-}
-
-std::string GetCustructorNameForC(ClassOrStructInfo const& classInfo, std::string const& postfix)
-{
-    return "New_" + classInfo.getCurosr().getDisplayName() + postfix;
-}
-
 std::string CallCopyConstructor(ClassOrStructInfo const& classInfo, std::string const& srcPtr)
 {
-    std::string constructorName = GetCustructorNameForC(classInfo, "_Copy");
+    std::string constructorName = CInterfaceCodeGenCommon::GetCustructorNameForC(classInfo, "_Copy");
     return constructorName + "(" + srcPtr + ")";
-}
-
-std::string GetDestructorNameForC(ClassOrStructInfo const& classInfo)
-{
-    return "Release_" + classInfo.getCurosr().getDisplayName();
 }
 
 std::string GetCursorConversion(Cursor const& cursor, bool isConst, bool dereference = false)
@@ -200,7 +132,7 @@ std::string GetCallerTypeC2CPPConversion(MethodInfo const& methodInfo)
 bool ReturnTypeNeedCopyAllocation(CursorType cursorType)
 {
     //返回了一个不透明类型的拷贝，需要分配内存
-    bool isOpaqueType = IsOpaqueType(cursorType);
+    bool isOpaqueType = CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
     bool needPointer = cursorType.IsReferenceOrPointer();
     return isOpaqueType && !needPointer;
 }
@@ -310,7 +242,7 @@ void GenerateMethod(CodeInfoContainer const& codeInfoContainer, MethodInfo const
     argumentsDeclData.set("argDecls", argDecls);
 
     Mustache::data methodData;
-    methodData["method_name"] = GetFunctionNameForC(methodInfo);
+    methodData["method_name"] = CInterfaceCodeGenCommon::GetFunctionNameForC(methodInfo);
     methodData["arguments"] = argumentsDeclTemplate.render(argumentsDeclData);
     methodData["return_type"] = GetReturnTypeForC(methodInfo.getCurosr().GetReturnType());
     methodData["method_body"] = GetFunctionBody(codeInfoContainer, methodInfo);
@@ -334,7 +266,7 @@ void GenerateDestructor(ClassOrStructInfo const& classInfo
 , Mustache::data& outMethodDeclarations
 , Mustache::data& outMethodImplementations)
 {
-    std::string destructorName = GetDestructorNameForC(classInfo);
+    std::string destructorName = CInterfaceCodeGenCommon::GetDestructorNameForC(classInfo);
     std::string conversion = GetCursorConversion(classInfo.getCurosr(), false);
     Mustache::data defaultDestructorData;
     defaultDestructorData["method_name"] = destructorName;
@@ -355,7 +287,7 @@ void GenerateCopyConstructor(ClassOrStructInfo const& classInfo
 {
     if(classInfo.CopyConstructable())
     {
-        std::string constructorName = GetCustructorNameForC(classInfo, "_Copy");
+        std::string constructorName = CInterfaceCodeGenCommon::GetCustructorNameForC(classInfo, "_Copy");
         std::string conversion = GetCursorConversion(classInfo.getCurosr(), true, true);
         Mustache::data copyCtorData;
         copyCtorData["method_name"] = constructorName;
@@ -379,7 +311,7 @@ void GenerateConstructors(ClassOrStructInfo const& classInfo
     //Default Constructor
     if(classInfo.DefaultConstructable())
     {
-        std::string constructorName = GetCustructorNameForC(classInfo, "");
+        std::string constructorName = CInterfaceCodeGenCommon::GetCustructorNameForC(classInfo, "");
         Mustache::mustache defaultConstructorDeclTemplate = Utils::CreateMustacheNoEscape("CAINTERFACE void* {{method_name}}();");
 Mustache::mustache defaultConstructorImpl = Utils::CreateMustacheNoEscape(R"(
     CAINTERFACE void* {{method_name}}()
@@ -416,10 +348,10 @@ Mustache::mustache defaultConstructorImpl = Utils::CreateMustacheNoEscape(R"(
             {
                 argDecls.push_back(GetArgumentTypeForC(argInfo.GetCursor().getType()) + " " + argInfo.GetName());
                 argConversions.push_back(GetArgumentC2CppConversion(argInfo.GetCursor()) + argInfo.GetName());
-                argTypes.push_back(GetArgumentTypeNameForC(argInfo.GetCursor().getType()));
+                argTypes.push_back(CInterfaceCodeGenCommon::GetArgumentTypeNameForC(argInfo.GetCursor().getType()));
             }
 
-            std::string constructorName = GetCustructorNameForC(classInfo, "_" + Utils::join(argTypes, "_"));
+            std::string constructorName = CInterfaceCodeGenCommon::GetCustructorNameForC(classInfo, "_" + Utils::join(argTypes, "_"));
 
             Mustache::mustache constructorDeclTemplate = Utils::CreateMustacheNoEscape("CAINTERFACE void* {{method_name}}({{argDecls}});");
 Mustache::mustache constructorTemplate = Utils::CreateMustacheNoEscape(R"(
@@ -497,7 +429,7 @@ void GenerateFieldGetterAndSetters(CodeInfoContainer const& codeInfoContainer, C
     }
 }
 
-void CInterfaceGenerator::GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer)
+void CInterfaceGenerator::GenerateCode(WorkSpaceInfo const& workSpaceInfo, CodeInfoContainer const& codeInfoContainer, GeneratedCodeResults& codeResults)
 {
     std::cout << "Generated C Functions: " << std::endl;
 
@@ -557,7 +489,7 @@ extern "C"
     std::string projectName = workSpaceInfo.GetProjectName();
     projectName = Utils::replace(projectName, " ", "_");
     std::string headerFileName = "C_" + projectName + "_CodeGen.h";
-    std::string sourceFileName = "C_" + projectName + "_CodeGen.cpp";
+    std::string sourceFileName = "C_" + projectName + "_CodeGen.hpp";
 
     Mustache::data includeFileData;
     includeFileData["header_guard"] = headerGuardTemplate.render(
@@ -611,7 +543,14 @@ extern "C"
 
     std::cout << "source: \n" << bodyTemplate.render(sourceFileData) << std::endl;
 
-    fs::path headerFilePath = workSpaceInfo.GetCodeGenOutputPath() / headerFileName;
+    fs::path CInterfaceDir = workSpaceInfo.GetCodeGenOutputPath() / "CInterface";
+    fs::create_directories(CInterfaceDir);
+    // fs::path CInterfaceHeaderDir = CInterfaceDir / "include";
+    // fs::create_directories(CInterfaceHeaderDir);
+    // fs::path CInterfaceSrcDir = CInterfaceDir / "Source";
+    // fs::create_directories(CInterfaceSrcDir);
+
+    fs::path headerFilePath = CInterfaceDir / headerFileName;
     std::fstream codegenfile;
     codegenfile.open(headerFilePath, std::ios::out);
     if (!codegenfile.is_open())
@@ -624,7 +563,7 @@ extern "C"
         codegenfile.close();
     }
 
-    fs::path sourceFilePath = workSpaceInfo.GetCodeGenOutputPath() / sourceFileName;
+    fs::path sourceFilePath = CInterfaceDir / sourceFileName;
     codegenfile.open(sourceFilePath, std::ios::out);
     if (!codegenfile.is_open())
     {
@@ -635,4 +574,5 @@ extern "C"
         codegenfile << bodyTemplate.render(sourceFileData);
         codegenfile.close();
     }
+    codeResults.AddGeneratedHPPFile(sourceFilePath.string());
 }
