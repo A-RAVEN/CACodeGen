@@ -47,6 +47,19 @@ std::string GetArgumentTypeForCSharp(CursorType cursorType, bool isOut)
     return argumentTemplate.render(data);
 }
 
+std::string GetCSWrapedType(CursorType cursorType)
+{
+    bool hasPointer = cursorType.IsReferenceOrPointer();
+    if(hasPointer)
+    {
+        cursorType = cursorType.GetPointeeType();
+    }
+    cursorType = cursorType.GetCanonicalType();
+    bool isOpaqueType = CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
+    std::string resultName = hasPointer ? "IntPtr" : cursorType.GetDisplayName();
+    return resultName;
+}
+
 std::string GetReturnTypeForCSharp(CursorType cursorType)
 {
     bool isVoid = cursorType.IsVoid();
@@ -188,8 +201,18 @@ void GenerateFieldGetterAndSetters(CSharpCodeGenState const& codeGenState, Class
 
     Mustache::mustache getterSetterDecl
      = Utils::CreateMustacheNoEscape(R"(
-    public {{}}
-    extern static {{return_type}} {{getter_method_name}}(IntPtr thisHandle);)");
+    public {{cs_field_type}} {{field_name}}
+    {
+        get
+        {
+            var result = {{getter_method_name}}(handle);
+            return result;
+        }
+        set
+        {
+            {{setter_method_name}}(handle, value);
+        }
+    })");
 
     for(auto& field : fields)
     {
@@ -202,6 +225,8 @@ void GenerateFieldGetterAndSetters(CSharpCodeGenState const& codeGenState, Class
         getterSetterData["field_type"] = field_type;
         getterSetterData["field_name"] = field.getCurosr().getDisplayName();
         getterSetterData["return_type"] = GetReturnTypeForCSharp(field.getCurosr().getType());
+        getterSetterData["cs_field_type"] = GetReturnTypeForCSharp(field.getCurosr().getType());
+
         outMethods.push_back(Mustache::data{"native_method", simpleSetterDecl.render(getterSetterData)});
         outMethods.push_back(Mustache::data{"native_method", simpleGetterDecl.render(getterSetterData)});
     }
