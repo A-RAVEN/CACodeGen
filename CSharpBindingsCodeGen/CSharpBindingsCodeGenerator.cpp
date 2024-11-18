@@ -25,6 +25,18 @@ std::string GetFieldTypeForCSharp(CursorType cursorType)
     return isOpaqueType ? "IntPtr" : cursorType.GetCanonicalType().GetDisplayName();
 }
 
+void GetCursorTypeProperties(CursorType cursorType, bool& hasConst, bool& isPointer, bool& isOpaqueType)
+{
+    hasConst = cursorType.IsConst();
+    isPointer = cursorType.IsReferenceOrPointer();
+    if(isPointer)
+    {
+        cursorType = cursorType.GetPointeeType();
+    }
+    cursorType = cursorType.GetCanonicalType();
+    isOpaqueType = CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
+}
+
 std::string GetArgumentTypeForCSharp(CursorType cursorType, bool isOut)
 {
     bool hasConst = cursorType.IsConst();
@@ -47,7 +59,7 @@ std::string GetArgumentTypeForCSharp(CursorType cursorType, bool isOut)
     return argumentTemplate.render(data);
 }
 
-std::string GetCSWrapedType(CursorType cursorType)
+std::string GetCSWrapedType(CSharpCodeGenState const& codeGenState, CursorType cursorType)
 {
     bool hasPointer = cursorType.IsReferenceOrPointer();
     if(hasPointer)
@@ -56,8 +68,13 @@ std::string GetCSWrapedType(CursorType cursorType)
     }
     cursorType = cursorType.GetCanonicalType();
     bool isOpaqueType = CInterfaceCodeGenCommon::IsOpaqueType(cursorType);
-    std::string resultName = hasPointer ? "IntPtr" : cursorType.GetDisplayName();
-    return resultName;
+    if(isOpaqueType)
+    {
+        auto classInfo = codeGenState.codeInfoContainer.FindClassOrStruct(cursorType.GetDeclaration());
+        std::string resultName = classInfo->GetFullName(".");
+        return resultName;
+    }
+    return cursorType.GetDisplayName();
 }
 
 std::string GetReturnTypeForCSharp(CursorType cursorType)
@@ -126,6 +143,15 @@ void GenerateConstructors(CSharpCodeGenState const& codeGenState
 , ClassOrStructInfo const& classInfo
 , Mustache::data& outMethods)
 {
+    auto typeName = classInfo.getCurosr().getDisplayName();
+    Mustache::data csConstructorData;
+    csConstructorData["type_name"] = typeName;
+    Mustache::mustache constructorDeclTemplate = Utils::CreateMustacheNoEscape(R"(
+    internal {{type_name}}(IntPtr otherHandle)
+    {
+       handle = otherHandle;
+    })");
+    outMethods.push_back(Mustache::data{"native_method", constructorDeclTemplate.render(csConstructorData)});
 
     //Default Constructor
     if(classInfo.DefaultConstructable())
@@ -137,7 +163,15 @@ void GenerateConstructors(CSharpCodeGenState const& codeGenState
         Mustache::data defaultConstructorData;
         defaultConstructorData["library_name"] = codeGenState.libraryName;
         defaultConstructorData["method_name"] = constructorName;
+        defaultConstructorData["type_name"] = typeName;
         outMethods.push_back(Mustache::data{"native_method", defaultConstructTemplate.render(defaultConstructorData)});
+
+        Mustache::mustache newConstructorDeclTemplate = Utils::CreateMustacheNoEscape(R"(
+    public {{type_name}}()
+    {
+        handle = {{method_name}}();
+    })");
+        outMethods.push_back(Mustache::data{"native_method", newConstructorDeclTemplate.render(defaultConstructorData)});
     }
 
     auto& methodInfos = classInfo.GetConstructors();
@@ -173,6 +207,7 @@ void GenerateDestructors(CSharpCodeGenState const& codeGenState
 , ClassOrStructInfo const& classInfo
 , Mustache::data& outMethods)
 {
+    auto typeName = classInfo.getCurosr().getDisplayName();
     std::string destructorName = CInterfaceCodeGenCommon::GetDestructorNameForC(classInfo);
     Mustache::mustache defaultDestructorTemplate = Utils::CreateMustacheNoEscape(R"(
     [DllImport("{{library_name}}")]
@@ -181,7 +216,16 @@ void GenerateDestructors(CSharpCodeGenState const& codeGenState
     Mustache::data defaultDestructorData;
     defaultDestructorData["library_name"] = codeGenState.libraryName;
     defaultDestructorData["method_name"] = destructorName;
+    defaultDestructorData["type_name"] = typeName;
     outMethods.push_back(Mustache::data{"native_method", defaultDestructorTemplate.render(defaultDestructorData)});
+
+    Mustache::mustache finalizerDeclTemplate = Utils::CreateMustacheNoEscape(R"(
+    ~{{type_name}}()
+    {
+        {{method_name}}(this.handle);
+    })");
+    outMethods.push_back(Mustache::data{"native_method", finalizerDeclTemplate.render(defaultDestructorData)});
+
 }
 
 void GenerateFieldGetterAndSetters(CSharpCodeGenState const& codeGenState, ClassOrStructInfo const& classInfo
@@ -206,11 +250,11 @@ void GenerateFieldGetterAndSetters(CSharpCodeGenState const& codeGenState, Class
         get
         {
             var result = {{getter_method_name}}(handle);
-            return result;
+            return {{get_value_expr}};
         }
         set
         {
-            {{setter_method_name}}(handle, value);
+            {{setter_method_name}}(handle, {{set_value_expr}});
         }
     })");
 
@@ -218,15 +262,21 @@ void GenerateFieldGetterAndSetters(CSharpCodeGenState const& codeGenState, Class
     {
         std::string methodNameBase = classInfo.GetFullName("_") + "_" + field.getCurosr().getDisplayName();
         std::string field_type = GetArgumentTypeForCSharp(field.getCurosr().getType(), false);
+        std::string cs_field_type = GetCSWrapedType(codeGenState, field.getCurosr().getType());
+        bool hasConst,isPointer, isOpaquel;
+        GetCursorTypeProperties(field.getCurosr().getType(), hasConst, isPointer, isOpaquel);
         Mustache::data getterSetterData;
         getterSetterData["library_name"] = codeGenState.libraryName;
         getterSetterData["setter_method_name"] = "Set_" + methodNameBase;
         getterSetterData["getter_method_name"] = "Get_" + methodNameBase;
         getterSetterData["field_type"] = field_type;
+        getterSetterData["cs_field_type"] = cs_field_type;
         getterSetterData["field_name"] = field.getCurosr().getDisplayName();
         getterSetterData["return_type"] = GetReturnTypeForCSharp(field.getCurosr().getType());
-        getterSetterData["cs_field_type"] = GetReturnTypeForCSharp(field.getCurosr().getType());
+        getterSetterData["get_value_expr"] = isOpaquel ? ("new " + GetCSWrapedType(codeGenState, field.getCurosr().getType()) + "(result)") : "result";
+        getterSetterData["set_value_expr"] = isOpaquel ? "value.handle" : "value";
 
+        outMethods.push_back(Mustache::data{"native_method", getterSetterDecl.render(getterSetterData)});
         outMethods.push_back(Mustache::data{"native_method", simpleSetterDecl.render(getterSetterData)});
         outMethods.push_back(Mustache::data{"native_method", simpleGetterDecl.render(getterSetterData)});
     }
@@ -260,9 +310,9 @@ public class {{class_name}}
 {{/class_functions}}{{#native_methods}}
 {{native_method}}
 {{/native_methods}}
-}
+};
 {{#has_namespace}}
-}
+};
 {{/has_namespace}}
 )");
 
@@ -381,7 +431,14 @@ public class {{class_name}}
 
         auto dllFilePath = csDir / "Binaries" /(libraryName + "_CS.dll");
         auto dllDstFilePath = workSpaceInfo.GetOutputPath() / (libraryName + "_CS.dll");
-        fs::copy_file(dllFilePath, dllDstFilePath);
+        if(fs::exists(dllFilePath))
+        {
+            if(!fs::exists(workSpaceInfo.GetOutputPath()))
+            {
+                fs::create_directories(workSpaceInfo.GetOutputPath());
+            }
+            fs::copy_file(dllFilePath, dllDstFilePath);
+        }
     }
 
 }

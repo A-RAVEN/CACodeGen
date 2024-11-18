@@ -107,7 +107,10 @@ void CodeParser::Parse()
     auto parsingSourceFiles = m_WorkSpaceInfo.FindAllHeaderFilesInProject();
 
     std::fstream temp_parsing_file;
-    fs::remove_all(m_WorkSpaceInfo.GetCodeGenOutputPath());
+    if(fs::exists(m_WorkSpaceInfo.GetCodeGenOutputPath()))
+    {
+        fs::remove_all(m_WorkSpaceInfo.GetCodeGenOutputPath());
+    }
     std::filesystem::create_directories(m_WorkSpaceInfo.GetCodeGenOutputPath());
     fs::path codegenFilePath = m_WorkSpaceInfo.GetCodeGenOutputPath() / "TempCodeGen.cpp";
     temp_parsing_file.open(codegenFilePath, std::ios::out);

@@ -17,6 +17,7 @@
                 "--includes=${workspaceFolder}/Test/TestInclue",
                 "--includes=D:/Projects/CACodeGen/MetaRuntime/include",
                 "--modules=${command:cmake.getLaunchTargetDirectory}",
+                "--outdir=D:/Projects/CACodeGen/build/Test/Debug",
             ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
